@@ -1,0 +1,12 @@
+Package: MRprollim
+Type: Package
+Title: MR-PROLLIM
+Version: 1.0
+Date: 2022-12-17
+Author: Mintao Li, Jinzhu Jia
+Maintainer: Mintao Li <limintao@pku.edu.cn>
+Description: Mendelian randomization with pleiotropy-robust log-linear models adapted for binary outcomes and potential horizontal pleiotropy.
+License: GPL (>= 2)
+Depends: CompQuadForm
+Imports: Rcpp (>= 1.0.7), stringr, parallel, rgenoud
+LinkingTo: Rcpp
