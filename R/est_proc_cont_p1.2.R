@@ -50,7 +50,7 @@ est_proc_cont_p1.2<-function(x,y,g_unsuit,c,c_inherit,start,
               start_m<-start[[i]][1:length( c(rep(0,ncol(g_dum)),rep(0,ncol2(c_m)),-1) )]
             }
             
-            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_dum,g_dum=g_dum,c=c_m,a1=a1,b4_prior=rep(1,ncol(g_dum)),b1_sp=b1_sp,return_na=T,name=colnames(g_unsuit)[i],control=nlminb_control)
+            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_dum,g_dum=g_dum,c=c_m,a1=a1,b4_prior=rep(1,ncol(g_dum)),b1_sp=b1_sp,name=colnames(g_unsuit)[i],control=nlminb_control)
             vcov<-sandwich_cont_c_mr((ncol(g_dum)+2):(2*ncol(g_dum)+1),beta_opt=fit1$estimate,
                                      y=y_m,g=g_dum,g_dum=g_dum,c=c_m,a1=a1,x=x_m,
                                      b4_prior=rep(1,ncol(g_dum)),
@@ -80,7 +80,7 @@ est_proc_cont_p1.2<-function(x,y,g_unsuit,c,c_inherit,start,
             if(is.null(start)){start_m<-c(rep(0,ncol(g_dum)),rep(0,ncol2(c_m)),-1)}else{
               start_m<-start[[i]][1:length( c(rep(0,ncol(g_dum)),rep(0,ncol2(c_m)),-1) )]
             }
-            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_dum,g_dum=g_dum,c=c_m,a1=a1_2,b4_prior=rep(1,ncol(g_dum)),b1_sp=b1_sp,return_na=T,name=colnames(g_unsuit)[i],control=nlminb_control)
+            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_dum,g_dum=g_dum,c=c_m,a1=a1_2,b4_prior=rep(1,ncol(g_dum)),b1_sp=b1_sp,name=colnames(g_unsuit)[i],control=nlminb_control)
             
             a1_indiv<-est_indiv(B=-t(d_matr2)%*%d_matr2/length(x_m2),M_indiv=c(x_m2-d_matr2%*%b)*d_matr2,1:length(a1_2),a1_2)
             
@@ -116,12 +116,11 @@ est_proc_cont_p1.2<-function(x,y,g_unsuit,c,c_inherit,start,
   
   mynum<-cut_num(1:ncol(g_unsuit),mc.cores)
   exec_base_func<-function(x){
-    Sys.sleep(x/10)
-    library(MRprollim,quietly=T)
+    suppressWarnings(library(MRprollim,quietly=T))
   }
   mycheck<-"pass"
   myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                          print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func)},warning=function(w){mycheck<<-w})
+                                          print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func,seed=NULL)},warning=function(w){mycheck<<-w})
   if((!identical(mycheck,"pass"))&mc.cores!=1){
     warning("An error occurred. Output of my_parallel with errors is returned.")
     message(mycheck)

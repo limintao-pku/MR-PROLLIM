@@ -52,7 +52,7 @@ est_proc_cont_p1<-function(x,y,g_suit,c,c_inherit,start,mc.cores,PSOCK,parallel_
               start_m<-start[[i]][1:length(c(0,0,rep(0,ncol2(c_m)),-1))]
             }
             
-            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1,b4_prior=c(1),return_na=T,name=colnames(g_suit)[i],control=nlminb_control)
+            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1,b4_prior=c(1),name=colnames(g_suit)[i],control=nlminb_control)
             z_indiv<-sandwich_cont_c_mr((ncol(g_dum)+1):(ncol(g_dum)+2),beta_opt=fit1$estimate,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1,x=x_m,b4_prior=c(1),return_indiv=T,name=colnames(g_suit)[i])
             vcov<-est_vcov(z_indiv)
             if(anyNA(vcov)){fit1$estimate<-rep(NA,length(fit1$estimate))}
@@ -78,10 +78,10 @@ est_proc_cont_p1<-function(x,y,g_suit,c,c_inherit,start,mc.cores,PSOCK,parallel_
             if(is.null(start)){start_m<-c(0,0,rep(0,ncol2(c_m)),-1)}else{
               start_m<-start[[i]][1:length(c(0,0,rep(0,ncol2(c_m)),-1))]
             }
-            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1_2,b4_prior=c(1),return_na=T,name=colnames(g_suit)[i],control=nlminb_control)
+            fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1_2,b4_prior=c(1),name=colnames(g_suit)[i],control=nlminb_control)
             #suppose a1_2 is measured without error, and make adjustments afterwards.
             fit_indiv<-sandwich_cont_c_mr((ncol(g_dum2)+1):(ncol(g_dum2)+2),beta_opt=fit1$estimate,y=y_m,g=g_m,g_dum=g_dum,c=c_m,a1=a1_2,a1_indiv=matrix(a1_2,ncol=length(a1_2),nrow=length(y_m),byrow=T),
-                                          ,b4_prior=c(1),return_indiv=T,return_w=T,name=colnames(g_suit)[i])
+                                          b4_prior=c(1),return_indiv=T,return_w=T,name=colnames(g_suit)[i])
             a1_indiv<-est_indiv(B=-t(d_matr2)%*%d_matr2/length(x_m2),M_indiv=c(x_m2-d_matr2%*%b)*d_matr2,1:length(a1_2),a1_2)
             vcov<-est_vcov(fit_indiv[[1]])+fit_indiv[[2]]%*%est_vcov(a1_indiv)%*%t(fit_indiv[[2]])
             if(anyNA(vcov)){fit1$estimate<-rep(NA,length(fit1$estimate))}
@@ -117,12 +117,11 @@ est_proc_cont_p1<-function(x,y,g_suit,c,c_inherit,start,mc.cores,PSOCK,parallel_
   }
   mynum<-cut_num(1:ncol(g_suit),mc.cores)
   exec_base_func<-function(x){
-    Sys.sleep(x/10)
-    library(MRprollim,quietly=T)
+    suppressWarnings(library(MRprollim,quietly=T))
   }
   mycheck<-"pass"
   myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                          print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func)},warning=function(w){mycheck<<-w})
+                                          print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func,seed=NULL)},warning=function(w){mycheck<<-w})
   if((!identical(mycheck,"pass"))&mc.cores!=1){
     warning("An error occurred. Output of my_parallel with errors is returned.")
     message(mycheck)

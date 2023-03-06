@@ -1,6 +1,6 @@
 my_parallel<-function(X,FUN,...,mc.cores=1,PSOCK=F,dt=T,print_message=T,
                       cl=NULL,stopcl=T,exec_base_func=NULL,export_parent=F,export_parent_func=F,
-                      add_obj_list=NULL,outfile=NULL){
+                      add_obj_list=NULL,outfile=NULL,seed=NULL){
   cores<-mc.cores
   stopifnot(cores>=1)
   stopifnot(length(X)<=cores)
@@ -53,6 +53,34 @@ my_parallel<-function(X,FUN,...,mc.cores=1,PSOCK=F,dt=T,print_message=T,
     
     if(is.null(cl)){
       cl<-parallel::makePSOCKcluster(cores,outfile=temp1)
+      if(!is.null(seed)){
+        #to be consistent with mclapply
+        myclusterSetRNGStream<-function(cl=NULL,iseed=NULL){
+          cl <- parallel:::defaultCluster(cl)
+          oldseed <- if (exists(".Random.seed", envir = .GlobalEnv, 
+                                inherits = FALSE)) 
+            get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+          else NULL
+          RNGkind("L'Ecuyer-CMRG")
+          if (!is.null(iseed)) 
+            set.seed(iseed)
+          nc <- length(cl)
+          seeds <- vector("list", nc)
+          seeds[[1L]] <- parallel::nextRNGStream(.Random.seed)
+          for (i in seq_len(nc - 1L)) seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
+          if (!is.null(oldseed)) 
+            assign(".Random.seed", oldseed, envir = .GlobalEnv)
+          else rm(.Random.seed, envir = .GlobalEnv)
+          for (i in seq_along(cl)) {
+            expr <- substitute(assign(".Random.seed", seed, envir = .GlobalEnv), 
+                               list(seed = seeds[[i]]))
+            parallel:::sendCall(cl[[i]], eval, list(expr))
+          }
+          parallel:::checkForRemoteErrors(lapply(cl, parallel:::recvResult))
+          invisible()
+        }
+        myclusterSetRNGStream(cl,seed)
+      }
       j<-(!is.null(exec_base_func))|export_parent|export_parent_func|(!is.null(add_obj_list))
       if(j){
         if(F){cat("Start exporting objects to clusters.\r\n")}
@@ -89,6 +117,7 @@ my_parallel<-function(X,FUN,...,mc.cores=1,PSOCK=F,dt=T,print_message=T,
     out<-tryCatch({parallel::parLapply(cl=cl,X=X,fun=FUN,...)},error=function(e){warning("Errors occured in parLapply");e})
     if(stopcl){
       parallel::stopCluster(cl)
+      Sys.sleep(0.3)
     }
     if(!print_message){
       parlog<-suppressWarnings(readLines(con=temp1))
@@ -98,8 +127,19 @@ my_parallel<-function(X,FUN,...,mc.cores=1,PSOCK=F,dt=T,print_message=T,
       }
     }
   }else{
-    out<-mclapply(X=X,FUN=FUN,...,mc.cores=cores)
+    if(!is.null(seed)){
+      myseed0<-tryCatch({get(".Random.seed",envir=.GlobalEnv,inherits=FALSE)},error=function(e){"e"})
+      RNGkind("L'Ecuyer-CMRG")
+      set.seed(seed)
+    }
+    out<-parallel::mclapply(X=X,FUN=FUN,...,mc.cores=cores)
+    if(!is.null(seed)){
+      if(!identical(myseed0,"e")){
+        assign(".Random.seed",myseed0,envir=.GlobalEnv)
+      }else{
+        rm(.Random.seed,envir=.GlobalEnv)
+      }
+    }
   }
   return(out)
 }
-

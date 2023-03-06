@@ -1,6 +1,6 @@
 est_variance_reMP<-function(f,beta_opt,...,beta_name=NULL,name="est_variance_reMP",sandwich=T,hessian=T,
                             adj_rs=F,boot_n=10000,mc.cores=1,parallel_trace=F,cpp=T,
-                            d1=.Machine$double.eps^(1/4),d2=.Machine$double.eps^(1/4),d3=.Machine$double.eps^(1/3)){
+                            d1=.Machine$double.eps^(1/4),d2=.Machine$double.eps^(1/4),d3=.Machine$double.eps^(1/3),save_sandw=T){
   
   n1<-length(beta_opt)
   names(beta_opt)<-NULL
@@ -109,6 +109,10 @@ est_variance_reMP<-function(f,beta_opt,...,beta_name=NULL,name="est_variance_reM
   }
   
   colnames(out_cov)<-rownames(out_cov)<-beta_name[loc]
+  if(save_sandw){
+    colnames(sandw)<-rownames(sandw)<-beta_name[loc]
+    assign("vcov_sandw",sandw,envir=parent.frame())
+  }
   if(!adj_rs){return(out_cov)}
   
   if(cpp){
@@ -163,7 +167,13 @@ est_variance_reMP<-function(f,beta_opt,...,beta_name=NULL,name="est_variance_reM
   }
   
   stopifnot(boot_n>=mc.cores)
-  out<-mclapply(even_allo2(boot_n,mc.cores),FUN=myboot,mc.cores=mc.cores)
+  add_obj_list<-list(var=c("n1","p_matr","der1_list","der2_list"),
+                     env=environment())
+  exec_base_func<-function(x){
+    suppressWarnings(library(MRprollim,quietly=T))
+  }
+  out<-my_parallel(even_allo2(boot_n,mc.cores),FUN=myboot,mc.cores=mc.cores,print_message=F,add_obj_list=add_obj_list,exec_base_func=exec_base_func,seed=round(runif(1,1,.Machine$integer.max)))
+  #out<-mclapply(even_allo2(boot_n,mc.cores),FUN=myboot,mc.cores=mc.cores)
   boot_out<-NULL
   for(i in 1:length(out)){
     boot_out<-cbind(boot_out,out[[i]])
@@ -172,5 +182,6 @@ est_variance_reMP<-function(f,beta_opt,...,beta_name=NULL,name="est_variance_reM
   boot_out<-na.omit(boot_out)
   add_cov<-cov(boot_out,use="na.or.complete")
   if(nrow(boot_out)/boot_n<0.9){warning(paste(name,"Only",nrow(boot_out),"repeats in adj_rs procedure are valid."))}
-  return(out_cov+add_cov)
+  assign(".mrp_p3_add_cov",add_cov,envir=.GlobalEnv)
+  return(out_cov)
 }

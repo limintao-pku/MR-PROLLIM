@@ -15,7 +15,7 @@ NumericVector my_allocate_cpp2(NumericMatrix x, NumericMatrix y){
             }
         }
         loc.clear();
-        double m = INT_MAX;
+        double m = out0[0] + 1;
         for (int q = 0; q < xncol; ++q) {
             if (out0[q] < m) {
                 m = out0[q];

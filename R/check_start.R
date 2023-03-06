@@ -5,4 +5,3 @@ check_start<-function(g,start,name){
   if(ncol(g)!=length(start)){stop("length(",name,") should be equal to ncol(g).")}
   NULL
 }
-

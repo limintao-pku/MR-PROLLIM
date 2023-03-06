@@ -25,6 +25,10 @@ my_allocate_cpp2 <- function(x, y) {
     .Call(`_MRprollim_my_allocate_cpp2`, x, y)
 }
 
+my_boot_adj <- function(n_rep, n_beta, p_matr, der1_list, der2_list) {
+    .Call(`_MRprollim_my_boot_adj`, n_rep, n_beta, p_matr, der1_list, der2_list)
+}
+
 my_calcu_vcov <- function(x_c, y) {
     .Call(`_MRprollim_my_calcu_vcov`, x_c, y)
 }

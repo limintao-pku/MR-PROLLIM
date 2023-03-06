@@ -1,4 +1,4 @@
-summary.mrp<-function(est_out,sd){
+summary.mrp<-function(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5){
   trans_proc_p3.2<-function(beta_norm,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,est_type="b"){
     if(anyNA(beta_norm)){return(c(b1=NA,p1=NA,p2=NA,u1=NA,s1=NA,r=NA,u2=NA))}
     mod_f<-function(x,r=F){
@@ -30,26 +30,23 @@ summary.mrp<-function(est_out,sd){
     if(model_u2){u2<-beta_norm[7]}else{u2<-0}
     return(c(b1=b1,p1=p1,p2=p2,u1=u1,s1=s1,r=r,u2=u2))
   }
-  get_model<-function(p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T){
-    if(identical(p1_sp,NULL)&identical(p2_sp,NULL)&identical(r_sp,NULL)){
-      return(11)
+  get_model<-function(p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,Egger_info){
+    if(identical(p1_sp,NULL)&identical(p2_sp,NULL)){
+      return("Full model")
     }
-    if(identical(p1_sp,NULL)&identical(p2_sp,NULL)&!identical(r_sp,NULL)){
-      return(10)
+    if(identical(p1_sp,NULL)&identical(p2_sp,1)){
+      return("Reduced model")
     }
-    if(identical(p1_sp,NULL)&identical(p2_sp,1)&identical(r_sp,NULL)){
-      return(21)
+    if(identical(p1_sp,NULL)&identical(p2_sp,0)){
+      return("Zero-correlation model")
     }
-    if(identical(p1_sp,NULL)&identical(p2_sp,1)&!identical(r_sp,NULL)){
-      return(20)
+    if(identical(p1_sp,1)&identical(p2_sp,0)&identical(Egger_info,"Egger")){
+      return("Egger model")
     }
-    if(identical(p1_sp,1)&identical(p2_sp,0)&identical(r_sp,NULL)){
-      return(31)
+    if(identical(p1_sp,1)&identical(p2_sp,0)&identical(Egger_info,"intercept")){
+      return("Intercept model")
     }
-    if(identical(p1_sp,1)&identical(p2_sp,0)&!identical(r_sp,NULL)){
-      return(30)
-    }
-    return(0)
+    return("Unknown model")
   }
   trans_b1<-function(x,fb1=F){
     if(is.null(x)){return(x)}
@@ -68,10 +65,12 @@ summary.mrp<-function(est_out,sd){
     stop("est_out should be an MR-PROLLIM output.")
   }
   
+  stopifnot(sd>0)
+  
   #p12 and mmqr
   out<-NULL
   if(identical(est_out$model,"dll")){m<-T}else{m<-F}
-  if(m){sd<-1}
+  if(m|!is.null(est_out$parameter$t_b1)){sd<-1}
   
   if(!is.null(est_out[["IVW_suit"]])){
     n<-length(est_out[["IVW_suit"]]$SNP_name)
@@ -155,11 +154,17 @@ summary.mrp<-function(est_out,sd){
   se_all<-rep(0,7)
   names(se_all)<-names(est_list$beta_norm)
   se_asy<-match.list(se_asy,se_all,T)
+  if(robust_u1){
+    se_u1<-est_list$se_u1_sandwich
+    if(is.na(se_u1)){se_u1<-0}
+    se_asy[4]<-se_u1
+  }
   se_boot<-as.numeric(sqrt(diag(est_list$vcov_boot)))
   if(identical(se_boot,numeric(0))){se_boot<-NA}
   beta<-trans_proc_p3.2(est_list$beta_norm,p1_sp=par[["p1_sp"]],p2_sp=par[["p2_sp"]],r_sp=par[["r_sp"]],model_u2=par[["model_u2"]],est_type=par[["est_type"]])
-  if(median(sqrt(est_out$data$m_sigma[,1]))*0.01>beta["s1"]){warning("s1 may be too small.")}
-  model<-get_model(p1_sp=par[["p1_sp"]],p2_sp=par[["p2_sp"]],r_sp=par[["r_sp"]],model_u2=par[["model_u2"]])
+  out_message<-NULL
+  if(median(sqrt(est_out$data$m_sigma[,1]))*s1_cut_k>beta["s1"]){out_message<-c(out_message,"s1_hat may be too small.")}
+  model<-get_model(p1_sp=par[["p1_sp"]],p2_sp=par[["p2_sp"]],r_sp=par[["r_sp"]],model_u2=par[["model_u2"]],Egger_info=par[["Egger_info"]])
   p.value_asy<-2*pnorm(-abs(est_list$beta_norm/se_asy))
   p.value_asy[se_asy==0]<-0
   p.value_boot<-2*pnorm(-abs(est_list$beta_norm/se_boot))
@@ -187,5 +192,34 @@ summary.mrp<-function(est_out,sd){
       empirical_ci[loc[i],]<-empirical_ci[loc[i],]/sd
     }
   }
-  return(list(sum_data=sum_data,empirical_ci=empirical_ci,model=model))
+  
+  if(beta[2]*beta[3]>p12_hat_cut){
+    out_message<-c(out_message,"A large p1_hat*p2_hat is detected.")
+    p_u1<-est_list$p_u1_sandwich
+    if(!is.na(p_u1)){
+      out_message<-c(out_message,paste("Sandwich P value for u1 = 0 according to the current model is",p_u1))
+      if(!identical(model,"Reduced model")){
+        out_message<-c(out_message,"A more precise P value for u1 = 0 can be obtained from the reduced model.")
+      }
+    }
+  }
+  
+  if(identical(par[["est_type"]],"b")){
+    if(sum_data[1,1]>10|any(is.infinite(sum_data[1,4:5]))){
+      out_message<-c(out_message,"A large b1_hat or infinity is detected. Recoding the binary exposure may help.")
+    }
+    if(sum_data[1,1]>10&!par[["t_b1"]]){
+      out_message<-c(out_message,"A large b1_hat is detected. Set control_p3$t_b1 = TRUE is recommended.")
+    }
+  }
+  
+  sum_data[c(2,3,5,6),c(3,7)]<-NA
+  if(all(is.na(sum_data[,6]))){
+    sum_data<-sum_data[,1:5]
+  }
+  
+  if(is.null(empirical_ci)){
+    return(list(sum_data=sum_data,model=model,message=out_message))
+  }
+  return(list(sum_data=sum_data,empirical_ci=empirical_ci,model=model,message=out_message))
 }

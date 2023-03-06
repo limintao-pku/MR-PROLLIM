@@ -225,6 +225,12 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
     names(eff)<-names(se)<-names(eff2)<-names(se2)<-colnames(fb1_indiv)<-name
     return(list(ivw=ivw,q=q[final],eff=eff,se=se,eff2=eff2,se2=se2,fb1_indiv=fb1_indiv,loc1=loc1,loc2=loc2))
   }
+  cover_p<-function(est,se,lower=0,upper=1,p=1e-5){
+    if(anyNA(est)|anyNA(se)){return(F)}
+    u<-est+se*abs(qnorm(p))
+    l<-est-se*abs(qnorm(p))
+    return((lower<l)&(upper>u))
+  }
   crt_data0<-function(y,x,g,c,dum_loc,start=NULL,p_limit=1e-5,name,k_vcov_r=T,data_k_all=NULL,nlminb_control=list()){
     loc_m<-which(!is.na(g))
     y<-y[loc_m]
@@ -375,7 +381,7 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
       m_sigma<-rbind(c(mkp_vcov[1,1],mkp_vcov[1,2],mkp_vcov[2,2]))
       k_hat<-rbind(c(fit$estimate[1:2],out0))
       
-      j<-anyNA(m_hat)|anyNA(m_sigma)|anyNA(k_hat)|anyNA(vcov)|anyNA(mkp_vcov)|anyNA(mkp_ind)|anyNA(loc_m)
+      j<-anyNA(m_hat)|anyNA(m_sigma)|anyNA(k_hat)|anyNA(vcov)|anyNA(mkp_vcov)|anyNA(mkp_ind)|anyNA(loc_m)|(!cover_p(out0,sqrt(var1),p=p_limit))
     }
     
     
@@ -498,12 +504,11 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
     }
     mynum<-cut_num(1:ncol(g_suit),mc.cores)
     exec_base_func<-function(x){
-      Sys.sleep(x/10)
-      library(MRprollim,quietly=T)
+      suppressWarnings(library(MRprollim,quietly=T))
     }
     mycheck<-"pass"
     myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                            print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func)},warning=function(w){mycheck<<-w})
+                                            print_message=parallel_trace,export_parent=T,exec_base_func=exec_base_func,seed=NULL)},warning=function(w){mycheck<<-w})
     if((!identical(mycheck,"pass"))&mc.cores!=1){
       warning("An error occurred. Output of my_parallel with errors is returned.")
       message(mycheck)

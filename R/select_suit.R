@@ -62,12 +62,11 @@ select_suit<-function(x,g,c,c_inherit,twosample_data=NULL,mc.cores,PSOCK,dt,para
   add_obj_list<-list(var=c("g","c","x","c_inherit"),
                      env=environment())
   exec_base_func<-function(x){
-    Sys.sleep(x/10)
-    library(MRprollim,quietly=T)
+    suppressWarnings(library(MRprollim,quietly=T))
   }
   mycheck<-"pass"
   myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                          print_message=parallel_trace,export_parent_func=T,add_obj_list=add_obj_list,exec_base_func=exec_base_func)},warning=function(w){mycheck<<-w})
+                                          print_message=parallel_trace,export_parent_func=T,add_obj_list=add_obj_list,exec_base_func=exec_base_func,seed=NULL)},warning=function(w){mycheck<<-w})
   if((!identical(mycheck,"pass"))&mc.cores!=1){
     warning("An error occurred. Output of my_parallel with errors is returned.")
     message(mycheck)

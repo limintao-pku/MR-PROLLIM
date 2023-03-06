@@ -154,6 +154,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// my_boot_adj
+List my_boot_adj(int n_rep, int n_beta, NumericMatrix p_matr, List der1_list, List der2_list);
+RcppExport SEXP _MRprollim_my_boot_adj(SEXP n_repSEXP, SEXP n_betaSEXP, SEXP p_matrSEXP, SEXP der1_listSEXP, SEXP der2_listSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_rep(n_repSEXP);
+    Rcpp::traits::input_parameter< int >::type n_beta(n_betaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type p_matr(p_matrSEXP);
+    Rcpp::traits::input_parameter< List >::type der1_list(der1_listSEXP);
+    Rcpp::traits::input_parameter< List >::type der2_list(der2_listSEXP);
+    rcpp_result_gen = Rcpp::wrap(my_boot_adj(n_rep, n_beta, p_matr, der1_list, der2_list));
+    return rcpp_result_gen;
+END_RCPP
+}
 // my_calcu_vcov
 NumericMatrix my_calcu_vcov(NumericMatrix x_c, IntegerVector y);
 RcppExport SEXP _MRprollim_my_calcu_vcov(SEXP x_cSEXP, SEXP ySEXP) {
@@ -174,6 +189,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_MRprollim_loop_p3_1_bi", (DL_FUNC) &_MRprollim_loop_p3_1_bi, 20},
     {"_MRprollim_loop_p3_1_bi_indiv_p", (DL_FUNC) &_MRprollim_loop_p3_1_bi_indiv_p, 20},
     {"_MRprollim_my_allocate_cpp2", (DL_FUNC) &_MRprollim_my_allocate_cpp2, 2},
+    {"_MRprollim_my_boot_adj", (DL_FUNC) &_MRprollim_my_boot_adj, 5},
     {"_MRprollim_my_calcu_vcov", (DL_FUNC) &_MRprollim_my_calcu_vcov, 2},
     {NULL, NULL, 0}
 };

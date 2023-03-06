@@ -5,4 +5,3 @@ check_dum_loc<-function(c,dum_loc,name){
   if(length(c)!=length(dum_loc)){stop("length(",name,") should be equal to length(c).")}
   NULL
 }
-

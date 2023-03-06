@@ -88,6 +88,7 @@ check_data<-function(x,y,g,c=NULL,c_inherit,twosample_data=NULL,type=c("b","c"),
         x<-sort(unique2(g[,i]))
         if(!any(x==0)){stop("One SNP is not properly coded")}
         if(length(x)>=u_limit){stop("One SNP has too many unique values")}
+        if(length(x)<=1){stop("One SNP has <=1 unique value")}
         if(cd_g_code){
           if(identical(as.numeric(x),c(0,1,2))){
             y<-recode_g_f(g[,i])
@@ -113,6 +114,7 @@ check_data<-function(x,y,g,c=NULL,c_inherit,twosample_data=NULL,type=c("b","c"),
         if(!identical(as.numeric(x),as.numeric(x2))){stop("SNPs in g_matrix and tsd_g_matrix are not identically coded.")}
         if(!any(x==0)){stop("One SNP is not properly coded")}
         if(length(x)>=u_limit){stop("One SNP has too many unique values")}
+        if(length(x)<=1){stop("One SNP has <=1 unique value")}
         if(any(abs(table2(g[,i])-table2(g2[,i]))>0.1)){message(colnames(g)[i]," exhibits substantially different genotype frequencies in g_matrix and tsd_g_matrix.")}
         if(cd_g_code){
           if(identical(as.numeric(x),c(0,1,2))){
@@ -140,4 +142,3 @@ check_data<-function(x,y,g,c=NULL,c_inherit,twosample_data=NULL,type=c("b","c"),
   
   return(list(g,twosample_data))
 }
-

@@ -1,13 +1,15 @@
 calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","b"),
-                    cd=T,cd_g_code=F,max_unique=10,n_min_limit=100,
+                    cd=T,max_unique=10,cd_g_code=T,n_min_limit=100,
                     control_limit_c=NULL,scale=T,
                     mc.cores=1,PSOCK=F,parallel_trace=F,dt=T,
-                    nlm=T,nlm_control=list(gradtol=1e-8,steptol=1e-6,stepmax=5,iterlim=100),
-                    nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300),
-                    rm_sig_p_cut=0.05,rm_sig_adj_m="bonferroni",cover=0.9999,n_boot=10000,get_sig_snp_data=NULL){
+                    nlm=T,nlm_control=list(gradtol=1e-8,steptol=1e-8,stepmax=5,iterlim=100),
+                    nlminb_control=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
+                                        nlm_control=list(gradtol=1e-10,stepmax=2,steptol=1e-10)),
+                    rm_sig_p_cut=0.05,rm_sig_adj_m="fdr",cover=0.9999,n_boot=10000,get_sig_snp_data=NULL){
   if(!is.data.frame(summary_data)){stop("summary_data should be a data.frame.")}
   if(any(!c("snp","eff","se")%in%colnames(summary_data))){stop("summary_data should contain columns 'snp', 'eff', and 'se'.")}
   if(!identical(summary_data$snp,colnames(g))){stop("summary_data$snp should be identical to colnames(g).")}
+  if(any(stringr::str_detect(colnames(g),"_recoded"))){stop("colnames(g) should not contain '_recoded'.")}
   if(any(duplicated(summary_data$snp))){stop("Duplicated SNP names detected.")}
   summary_data$p<-pnorm(-abs(summary_data$eff/summary_data$se))*2
   
@@ -90,19 +92,21 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
   }
 
   if(is.null(get_sig_snp_data)){
-    mydata1<-get_sig_snp(x,g,c,c_inherit,start,type,bi_type="log",
+    mydata1<-get_sig_snp(x=x,g=g,c=c,c_inherit=c_inherit,start=start,type=type,bi_type="log",
                          p_cut=5e-8,return_dt=T,
-                         cd,cd_g_code,max_unique,
-                         trinary_only=T,n_min_limit,
-                         control_limit_c,scale,
-                         mc.cores,PSOCK,parallel_trace,dt,
-                         nlm,nlm_control,nlminb_control)
+                         cd=cd,max_unique=max_unique,cd_g_code=cd_g_code,
+                         trinary_only=T,n_min_limit=n_min_limit,
+                         control_limit_c=control_limit_c,scale=scale,
+                         mc.cores=mc.cores,PSOCK=PSOCK,parallel_trace=parallel_trace,dt=dt,
+                         nlm=nlm,nlm_control=nlm_control,
+                         nlminb_control=nlminb_control)
   }else{
     mydata1<-get_sig_snp_data
   }
+  mydata10<-mydata1
   
-  name_re<-names(mydata1$eff)[str_detect(names(mydata1$eff),"_recoded")]
-  name_re<-str_remove_all(name_re,"_recoded")
+  name_re<-names(mydata1$eff)[stringr::str_detect(names(mydata1$eff),"_recoded")]
+  name_re<-stringr::str_remove_all(name_re,"_recoded")
   if(length(name_re)>0){
     for(i in 1:length(name_re)){
       loc<-which(summary_data$snp==name_re[i])
@@ -114,17 +118,19 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
   summary_data<-myselect(summary_data,which(summary_data$snp%in%names(mydata1$eff)),"r")
   stopifnot(identical(summary_data$snp,names(mydata1$eff)))
   
-  loc_sig<-which(p.adjust(mydata1$p,rm_sig_adj_m)<rm_sig_p_cut|p.adjust(summary_data$p,rm_sig_adj_m)<rm_sig_p_cut)
-  if(length(loc_sig)>0){
-    if(dt){cat(length(loc_sig)," significant SNPs are removed.\r\n")}
-    for(i in 1:length(loc_sig)){
-      mydata1$eff[[loc_sig[i]]]<-rep(NA,2)
-      mydata1$vcov[[loc_sig[i]]]<-matrix(NA,2,2)
-    }
+  loc_sig<-p.adjust(mydata1$p,rm_sig_adj_m)<rm_sig_p_cut|p.adjust(summary_data$p,rm_sig_adj_m)<rm_sig_p_cut
+  if(anyNA(loc_sig)){
+    if(dt){cat(sum(is(loc_sig)),"SNPs have NA results and will be treated as significant SNPs.\r\n")}
+    loc_sig[is.na(loc_sig)]<-T
   }
-  loc_nonNA<-unlist(lapply(mydata1$eff,FUN=function(x){!anyNA(x)}))&(!is.na(summary_data$p))
-  if(dt){cat(sum(loc_nonNA)," SNPs will be used.\r\n")}
-  stopifnot(sum(loc_nonNA)>=2)
+  if(sum(loc_sig)>0){
+    if(dt){cat(sum(loc_sig),"significant SNPs are removed.\r\n")}
+    if(dt){cat(sum(!loc_sig),"SNPs will be used.\r\n")}
+    stopifnot(sum(!loc_sig)>=2)
+    mydata1$eff<-mydata1$eff[!loc_sig]
+    mydata1$vcov<-mydata1$vcov[!loc_sig]
+    summary_data<-summary_data[!loc_sig,]
+  }
 
   modify_mydata2<-function(mydata2){
     for(i in 1:length(mydata2$eff)){
@@ -166,6 +172,6 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
     }
   }
   
-  out<-list(p_fpr=out2,p_conditional=out1,par=list(vcov_f=vcov_f,cover=cover,n_boot=n_boot,n_snp=sum(loc_nonNA)),get_sig_snp_data=mydata1)
+  out<-list(p_fpr=out2,p_conditional=out1,par=list(vcov_f=vcov_f,cover=cover,n_boot=n_boot,n_snp=sum(!loc_sig)),get_sig_snp_data=mydata10)
   return(out)
 }

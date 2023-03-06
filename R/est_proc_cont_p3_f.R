@@ -1,5 +1,12 @@
 est_proc_cont_p3_f<-function(beta,m_matrix,sigma1_matr,k_matrix,sign_k1,sign_k2,
-                             p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,individual=F,vcov_est=F){
+                             p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,individual=F,vcov_est=F,beta_loc=NULL){
+  if(!is.null(beta_loc)){
+    beta0<-rep(NA,7)
+    beta0[4]<-0
+    beta0[beta_loc]<-beta
+    beta<-beta0
+  }
+  
   if(vcov_est){
     b1<-beta[1]
     if(is.null(p1_sp)){p1<-beta[2]}else{p1<-p1_sp}

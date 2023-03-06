@@ -1,14 +1,14 @@
-est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=1,PSOCK=F,
+est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,parallel_trace=F,
                         est_type=c("p3","p2","p1","me_mo_q_re"),
-                        twosample_data=NULL,start=NULL,snp_exp_check=T,p_snp="ask",control_snp_exp_check=NULL,
+                        twosample_data=NULL,start=NULL,snp_exp_check=T,p_snp="ask",
                         cd=T,max_unique=10,cd_g_code=T,
                         n_min_limit=100,
                         control_limit_c=NULL,
-                        control_p3=NULL,
-                        control_p12=NULL,
-                        control_me_mo_q_re=NULL,
+                        control_p12=NULL,data_dhp=NULL,data_nohp=NULL,
+                        control_p3=NULL,data_p3_k=NULL,data_p3=NULL,data_p3_opt=NULL,
                         control_est_k_prior=NULL,control_est_k_post=NULL,control_global_search=NULL,
-                        data_p3_k=NULL,data_p3=NULL,data_dhp=NULL,data_me_mo_q_re=NULL,data_nohp=NULL){
+                        control_me_mo_q_re=NULL,data_me_mo_q_re=NULL,...
+                        ){
   c_cat<-F#legacy
   stopifnot(is.matrix(g))
   est_type<-match.arg(est_type)
@@ -35,6 +35,30 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     }
   }
   
+  #check ...
+  check_genoud_par<-function(MemoryMatrix=-pi,boundary.enforcement=-pi,
+                             BFGS=-pi,hessian=-pi,unif.seed=-pi,int.seed=-pi,share.type=-pi,instance.number=-pi,output.path=-pi,
+                             output.append=-pi,project.path=-pi,P1=0,P2=-pi,P3=-pi,P4=-pi,P5=-pi,P6=-pi,P7=100, 
+                             P8=-pi,P9=-pi,P9mix=-pi,BFGSfn=-pi,BFGShelp=-pi,optim.method=-pi,debug=-pi,return_list=F){
+    if(return_list){
+      org<-list(MemoryMatrix=-pi,boundary.enforcement=-pi,
+                BFGS=-pi,hessian=-pi,unif.seed=-pi,int.seed=-pi,share.type=-pi,instance.number=-pi,output.path=-pi,
+                output.append=-pi,project.path=-pi,P1=-pi,P2=-pi,P3=-pi,P4=-pi,P5=-pi,P6=-pi,P7=-pi, 
+                P8=-pi,P9=-pi,P9mix=-pi,BFGSfn=-pi,BFGShelp=-pi,optim.method=-pi,debug=-pi)
+      now<-list(MemoryMatrix=MemoryMatrix,boundary.enforcement=boundary.enforcement,
+                BFGS=BFGS,hessian=hessian,unif.seed=unif.seed,int.seed=int.seed,share.type=share.type,instance.number=instance.number,output.path=output.path,
+                output.append=output.append,project.path=project.path,P1=P1,P2=P2,P3=P3,P4=P4,P5=P5,P6=P6,P7=P7, 
+                P8=P8,P9=P9,P9mix=P9mix,BFGSfn=BFGSfn,BFGShelp=BFGShelp,optim.method=optim.method,debug=debug)
+      loc<-NA
+      for(i in 1:length(now)){
+        loc[i]<-!identical(now[[i]],org[[i]])
+      }
+      return(now[loc])
+    }
+    return("pass")
+  }
+  check_genoud_par(...,return_list=F)
+
   #check data
   if(cd){
     z<-check_data(x=x,y=y,g=g,c=c,c_inherit=c_inherit,type="c",u_limit=max_unique,twosample_data=twosample_data,cd_g_code=cd_g_code)
@@ -45,20 +69,22 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   }
   
   #par p1/p2
-  control_p12_org<-list(suit=NULL,return_suit=F,suit_p_cut=0.1,suit_adj_m="bonferroni",
+  control_p12_org<-list(suit=NULL,return_suit=F,suit_p_cut=0.1,suit_adj_m="fdr",
                         return_data_dhp=F,
+                        p2_hp_p=0.05,p2_adj_m="none",
+                        stage1_simplification=T,ind_hp=T,
                         outlier_detect=T,outlier_p=0.05,se_cut_k=1.5,
-                        p1_ind_hp=T,stage1_simplification=F,
-                        start_ind_hp=NULL,start_nohp=NULL,
-                        hp_p=0.1,adj_m="fdr",p2_hp_p=0.1,p2_adj_m="none",
+                        start_ind_hp=NULL,hp_p=0.1,adj_m="fdr",
+                        start_nohp=NULL,
                         c_type=c("linear","median&mode"),boot_n=10000,mode_phi=1,
-                        nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300))
+                        nlminb_control=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
+                                            nlm_control=list(gradtol=1e-10,stepmax=2,steptol=10^c(-10,-12,-8))))
   #c_type is combination type
   control_p12<-match.list(control_p12,control_p12_org)
   if(T){
     suit=control_p12$suit
     return_suit=control_p12$return_suit
-    p1_ind_hp=control_p12$p1_ind_hp;outlier_detect=control_p12$outlier_detect;outlier_p=control_p12$outlier_p
+    outlier_detect=control_p12$outlier_detect;outlier_p=control_p12$outlier_p
     se_cut_k=control_p12$se_cut_k
     start_ind_hp=control_p12$start_ind_hp;start_nohp=control_p12$start_nohp
     hp_p=control_p12$hp_p
@@ -69,7 +95,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   check_start(g,suit,"suit")
   
   #trinary g
-  control_limit_c_org<-list(limit_c=T,dum_loc="auto",limit_c_twosample=T,dum_loc_twosample="auto",quantile=c(0.025,0.975),outlier=F)
+  control_limit_c_org<-list(limit_c=T,dum_loc="auto",limit_c_twosample=T,dum_loc_twosample="auto",quantile=c(0,1),outlier=T)
   control_limit_c<-match.list(control_limit_c,control_limit_c_org)
   check_dum_loc(c,control_limit_c$dum_loc,"control_limit_c$dum_loc")
   check_dum_loc(twosample_data$c,control_limit_c$dum_loc_twosample,"control_limit_c$dum_loc_twosample")
@@ -176,8 +202,6 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   }
   
   #snp_exp_check
-  control_snp_exp_check_org<-list(nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300))
-  control_sec<-match.list(control_snp_exp_check,control_snp_exp_check_org)
   if(est_type!="p3"&snp_exp_check){
     if(dt){cat("Start snp_exp_check.\r\n")}
     if(is.null(twosample_data)){
@@ -226,35 +250,12 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   }
   
   #functions
-  ivw_random<-function(eff,se,...){
-    f_ivw_random<-function(beta,eff,se,est_vcov=F){
-      if(est_vcov){
-        s2<-beta[2]^2
-        p<-dnorm(eff,beta[1],sqrt(s2+se^2))
-        return(-log(p))
-      }
-      s2<-exp(beta[2])
-      p<-dnorm(eff,beta[1],sqrt(s2+se^2))
-      return(sum(-log(p)))
-    }
-    
-    loc<-!(is.na(eff)|is.na(se))
-    myeff<-eff[loc]
-    myse<-se[loc]
-    if(length(myse)<=3){
-      warning("The final number of SNPs is <=3. Additive random effects model is not used.")
-      return(list(eff=NA,se=NA,tau2=NA))
-    }
-    fit<-suppressWarnings(nlm(f=f_ivw_random,p=c(0,-1),eff=myeff,se=myse,...))
-    if(fit$code%in%c(3,4,5)){
-      warning("Abnormal nlm code in ivw_random.")
-      return(list(eff=NA,se=NA,tau2=NA))
-    }
-    
-    vcov<-mysandwich_ml(f=f_ivw_random,beta_opt=c(fit$estimate[1],sqrt(exp(fit$estimate[2]))),n=length(myeff),loc=1:2,name=c("u","s"),eff=myeff,se=myse,est_vcov=T,hessian=T)
-    return(list(eff=fit$estimate[1],se=sqrt(vcov[1,1]),tau2=exp(fit$estimate[2])))
-  }
   ivw_random<-function(eff,se,nlminb_control=list()){
+    nlminb_control<-nlminb_control$nlminb_control
+    nlminb_scale<-nlminb_control$scale
+    if(is.null(nlminb_scale)){nlminb_scale<-1}
+    nlminb_control[which(names(nlminb_control)=="scale")]<-NULL
+    
     f_ivw_random<-function(beta,eff,se,est_vcov=F){
       if(est_vcov){
         s2<-beta[2]^2
@@ -273,7 +274,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       warning("The final number of SNPs is <=3. Additive random effects model is not used.")
       return(list(eff=NA,se=NA,tau2=NA))
     }
-    fit<-nlminb2nlm(nlminb2(f=f_ivw_random,p=c(0,-1),eff=myeff,se=myse,control=nlminb_control))
+    fit<-nlminb2nlm(nlminb2(f=f_ivw_random,p=c(0,-1),eff=myeff,se=myse,scale=nlminb_scale,control=nlminb_control))
     if(fit$code%in%c(1)){
       warning("Abnormal nlminb code in ivw_random.")
     }
@@ -361,7 +362,8 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   #####main estimating procedure#####
   if(est_type=="me_mo_q_re"){
     control_mmqr_org<-list(mode_phi=1,outlier_p=0.05,se_cut_k=NULL,boot_n=10000,inspect_data_mmqr=F,
-                           nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300))
+                           nlminb_control=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
+                                               nlm_control=list(gradtol=1e-10,stepmax=2,steptol=10^c(-10,-12,-8))))
     control_mmqr<-match.list(control_me_mo_q_re,control_mmqr_org)
     
     if(is.null(data_me_mo_q_re)){
@@ -399,6 +401,30 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     SNP_names_re<-names(myeff)
     s_ivw<-meta_eff(myeff,myse)
     
+    equal_wald<-function(eff,vcov){
+      cochran_q<-function(eff,se){
+        loc<-which(!is.na(eff))
+        eff<-eff[loc]
+        se<-se[loc]
+        w<-1/se^2/sum(1/se^2)
+        eff_m<-sum(w*eff)
+        q=sum((eff-eff_m)^2/se^2)
+        return(q)
+      }
+      if(length(eff)==1){
+        return(c(chisq=NA,p.value=1))
+      }
+      if(is.vector(vcov)){
+        q<-cochran_q(eff,sqrt(vcov))
+        p<-pchisq(q,length(eff)-1,lower.tail=F)
+        return(list(chisq=q,p.value=p,SNP_num=length(eff)))
+      }
+      R<-cbind(rep(1,length(eff)-1),-diag(length(eff)-1))
+      chisq_stat<-t(R%*%eff)%*%solve(R%*%vcov%*%t(R))%*%(R%*%eff)
+      p<-pchisq(chisq_stat,length(eff)-1,lower.tail=F)
+      return(list(chisq=chisq_stat,p.value=p,SNP_num=length(eff)))
+    }
+    h_test<-equal_wald(myeff,myse^2)
     non_outlier<-outlier_test(myeff,myse,p_cut=control_mmqr$outlier_p,se_cut_k=control_mmqr$se_cut_k,dt=dt)
     loc<-!is.na(hp1$eff[1,])
     loc[loc]<-non_outlier
@@ -432,7 +458,8 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                 IVW_outlier_removal=list(eff_m=eff_m,se_m=se_m,SNP_name=IVs_m),
                 add_random=list(eff_m=ivw_re$eff,se_m=ivw_re$se,SNP_name=SNP_names_re,tau2=ivw_re$tau2),
                 IVW_simple=list(eff_m=s_ivw$est[1],se_m=s_ivw$est[2],SNP_name=SNP_names_re),
-                data_me_mo_q_re=hp1)
+                data_me_mo_q_re=hp1,
+                heterogeneity_test=h_test)
     class(myout)<-"MR-PROLLIM output"
     if(dt){cat("MR-PROLLIM classic methods (Procedure me_mo_q_re) finished.\r\n")}
     return(myout)
@@ -444,7 +471,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     if(is.null(suit)){
       if(dt){cat("Start screening suitable SNPs for direct HP test.\r\n")}
       suit<-select_suit(x=x,g=g,c=c,c_inherit=c_inherit,twosample_data=twosample_data,mc.cores=mc.cores,
-                        dt=dt,parallel_trace=parallel_trace,PSOCK=PSOCK,p_cut=control_p12$suit_p_cut,adj_m=control_p12$suit_adj_m)
+                        dt=dt,parallel_trace=F,PSOCK=PSOCK,p_cut=control_p12$suit_p_cut,adj_m=control_p12$suit_adj_m)
       if(identical(class(suit),"myerror")){return(suit)}
     }
     stopifnot(length(suit)==ncol(g))
@@ -504,7 +531,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     se_m<-meta_eff(hp1$eff[1,loc_no],hp1$se[1,loc_no])$est[2]
     IVs_m<-colnames(hp1$eff)[loc_no]
     
-    if(!p1_ind_hp){
+    if(!control_p12$ind_hp){
       myout<-list( cochran_q_suit=list(Q=Q,Q_p=Q_p),
                    IVW_suit=list(eff_m=eff_m,se_m=se_m,SNP_name=IVs_m),
                    IVW_all=list(result=NULL,SNP_name=NULL),
@@ -700,7 +727,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     IVs_m<-names(eff)
     #fs_data<-list(eff=eff,se=se)
     
-    if(!p1_ind_hp){
+    if(!control_p12$ind_hp){
       myout<-list( cochran_q_suit=list(Q=Q,Q_p=Q_p),
                    IVW_suit=list(eff_m=eff_m,se_m=se_m,SNP_name=IVs_m),
                    IVW_all=list(result=NULL,SNP_name=NULL),
@@ -803,8 +830,9 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
   }
   
   if(est_type=="p3"){
-    control_est_k_prior_org<-list(p_snp="previous",start=c(0,0,-1,-1,1),p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
-                                  nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300))
+    control_est_k_prior_org<-list(p_snp="previous",start=c(0,0,-1,-1,1),p0_start=c(seq(0.1,0.9,by=0.2),0.99,0.01),
+                                  auto_s=T,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
+                                  nlminb_control=list(rel.tol=1e-10,sing.tol=1e-10,step.min=1,eval.max=300,iter.max=300))
     control_est_k_post_org<-list(n_post=3000,n0=10000,p_cover=0.9999,f=NULL)
     control_est_k_prior<-match.list(control_est_k_prior,control_est_k_prior_org)
     control_est_k_post<-match.list(control_est_k_post,control_est_k_post_org)
@@ -813,13 +841,25 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                          inspect_data_p3_k=F,inspect_data_p3=F,inspect_data_p3_opt=F,
                          nome=F,p_snp=p_snp,
                          s_filter=F,s_filter_ask=F,s_k_r_limit=c(0.2,0.2),s_k_a_limit="auto",auto_k_limit=0.2,
-                         beta_start=c(0,0,0,0,-1,2,0),ask=F,
+                         beta_start=c(0,0,0,0,-1,2,0),auto_s1=T,ask=F,
                          p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,Egger="auto",
-                         model_select=T,check_fit_upper=0.999,check_fit_lower=0.001,
+                         model_select=T,check_fit_upper=0.999,check_fit_lower=0.001,s1_cut_k=0.01,
                          sandwich=T,hessian=T,adj_rs=F,se_adj_boot_n=10000,
                          boot_se=F,n_boot=3000,n_rep_max=3,
-                         control_nlminb=list(eval.max=300,iter.max=300))
+                         nlminb_control0=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
+                                              nlm_control=list(gradtol=1e-10,stepmax=2,steptol=10^c(-10,-12,-8))),
+                         nlminb_control=list(nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=1,eval.max=300,iter.max=300),
+                                             nlm_control=list(gradtol=1e-8,stepmax=2,steptol=1e-8)))
     control_p3<-match.list(control_p3,control_p3_org)
+    nlm_c_list_org<-list(hessian=F,fscale=1,print.level=0,ndigit=12,
+                         gradtol=1e-8,stepmax=2,steptol=1e-8,iterlim=300,check.analyticals=T)
+    nlm_c_list<-match.list(control_p3$nlminb_control$nlm_control,nlm_c_list_org)
+    nlminb_scale<-control_p3$nlminb_control$nlminb_control$scale
+    if(is.null(nlminb_scale)){nlminb_scale<-1}
+    control_p3$nlminb_control$nlminb_control[which(names(control_p3$nlminb_control$nlminb_control)=="scale")]<-NULL
+    nlminb_c_list<-control_p3$nlminb_control$nlminb_control
+    
+    control_sec<-list(nlminb_control=control_p3$nlminb_control0)
     mod_egger<-function(x){
       if(identical(x,"T")){return(T)}
       if(identical(x,"F")){return(F)}
@@ -831,18 +871,50 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     p1_sp<-control_p3$p1_sp;p2_sp<-control_p3$p2_sp;r_sp<-control_p3$r_sp;model_u2<-control_p3$model_u2
     beta_start<-control_p3$beta_start
     boot_se<-control_p3$boot_se
-    n_boot_max<-control_p3$n_boot_max;n_boot<-control_p3$n_boot
+    #n_boot_max<-control_p3$n_boot_max;n_boot<-control_p3$n_boot
     ask<-control_p3$ask
     n_boot<-control_p3$n_boot
     n_rep_max<-control_p3$n_rep_max
+    s1_cut_k<-control_p3$s1_cut_k
     
-    control_global_search_org<-list(global_search=T,gs_type="genoud",
-                                    genoud_control=list(pop.size=500,max.generations=50,solution.tolerance=1e-5,gradient.check=F,print.level=0,
-                                                        optim_control=list(ndeps=rep(1e-5,7))),
-                                    GenSA_control=list(maxit=50,max.time=NULL,verbose=F,trace.mat=F,seed=-sample(1:10000,1)),
-                                    lower=c(-5,-10,-10,-10,-30,-10,-5),upper=c(5,10,10,10,10,10,5))
-    control_gs<-match.list(control_global_search,control_global_search_org)
+    control_global_search_org<-list(global_search=T,global_search_EI=T,gs_type="genoud",
+                                    genoud_control=list(pop.size=min(max(1000,mc.cores*300),10000),pop.size.EI=100,max.generations=60,wait.generations=10,
+                                                        hard.generation.limit=TRUE,
+                                                        solution.tolerance=1e-5,
+                                                        gradient.check=F,print.level=0,
+                                                        BFGSburnin=10,balance=F,
+                                                        optim_control=list()),
+                                    GenSA_control=list(maxit=3000,maxit.EI=300,max.time=NULL,verbose=F,trace.mat=F,seed=-100377),
+                                    lower=c(-10,-10,-10,-10,-30,-10,-5),upper=c(10,10,10,10,10,10,5),auto_s1_k=5)
+    control_gs<-match.list(control_global_search,control_global_search_org) 
     genoud_control<-match.list(control_gs$genoud_control,control_global_search_org$genoud_control)
+    stopifnot(identical(names(control_gs$GenSA_control)[1],"maxit"))
+    stopifnot(identical(names(control_gs$GenSA_control)[2],"maxit.EI"))
+    update_GenSA<-function(list,exc){
+      list<-list[-exc]
+      names(list)[1]<-"maxit"
+      list
+    }
+    update_opt_c<-function(optim_control,beta_loc){
+      if(length(optim_control)>0){
+        for(i in 1:length(optim_control)){
+          if(length(optim_control[[i]])==7){
+            optim_control[[i]]<-optim_control[[i]][beta_loc]
+          }
+        }
+      }
+      optim_control
+    }
+    join_par<-function(expr1,expr2){
+      c1<-paste0(capture.output(expr1),collapse="")
+      c2<-paste0(capture.output(expr2),collapse="")
+      if(identical(c2,"expression()")){
+        return(paste0(stringr::str_remove_all(c1,"expression\\(|\\)\\)$"),")"))
+      }
+      cc<-paste0(stringr::str_remove_all(c1,"expression\\(|\\)\\)$"),", ",
+                 stringr::str_remove_all(c2,"expression\\(|\\)$"),")")
+      cc
+    }
     
     #functions required
     trans_par_norm<-function(beta,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,est_type="b",t_b1=F){
@@ -858,11 +930,6 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
         return(c(b1_t=b1,p1=p1,p2=p2,u1=u1,s1=s1,r_t=r_t,u2=u2))
       }
       return(c(b1=b1,p1=p1,p2=p2,u1=u1,s1=s1,r_t=r_t,u2=u2))
-    }
-    cover_p<-function(est,se,lower=0,upper=1,p=1e-5){
-      u<-est+se*abs(qnorm(p))
-      l<-est-se*abs(qnorm(p))
-      return((lower<l)&(upper>u))
     }
     crt_data2<-function(y,x,g,c,start=NULL,name=NULL,twosample_data=NULL,
                         stage1=F,data_k_hat=NULL,data_k_sigma=NULL,nlminb_control=list()){
@@ -958,7 +1025,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           if(is.null(start)){start_m<-c(rep(0,n1),rep(0,ncol(c)),-1)}else{
             start_m<-start[1:length(c(rep(0,n1),rep(0,ncol(c)),-1))]
           }
-          fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y,g=g_dum,g_dum=g_dum,c=c,a1=a1,b4_prior=rep(1,n1),b1_sp=0,return_na=T,name=name,control=nlminb_control)
+          fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y,g=g_dum,g_dum=g_dum,c=c,a1=a1,b4_prior=rep(1,n1),b1_sp=0,name=name,control=nlminb_control)
           vcov<-sandwich_cont_c_mr(c( 1:n1,(n1+2):(2*n1+1) ),beta_opt=fit1$estimate,y=y,g=g_dum,g_dum=g_dum,c=c,
                                    a1=a1,x=x,b4_prior=rep(1,n1),b1_sp=0,b1_sp_indiv=rep(0,length(y)),direct_M=T,name=name)
           if(anyNA(vcov)){fit1$estimate<-rep(NA,length(fit1$estimate))}
@@ -1003,7 +1070,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           if(is.null(start)){start_m<-c(rep(0,n1),rep(0,ncol2(c)),-1)}else{
             start_m<-start[1:length(c(rep(0,n1),rep(0,ncol2(c)),-1))]
           }
-          fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y,g=g_dum,g_dum=g_dum,c=c,a1=a1_2,b4_prior=rep(1,n1),b1_sp=0,return_na=T,name=name,control=nlminb_control)
+          fit1<-mynlminb(f=f_cont_c_mr,p=start_m,y=y,g=g_dum,g_dum=g_dum,c=c,a1=a1_2,b4_prior=rep(1,n1),b1_sp=0,name=name,control=nlminb_control)
           fit_indiv<-sandwich_cont_c_mr(c( 1:n1,(n1+2):(2*n1+1) ),beta_opt=fit1$estimate,y=y,g=g_dum,g_dum=g_dum,c=c,a1=a1_2,a1_indiv=matrix(a1_2,ncol=length(a1_2),nrow=length(y),byrow=T),
                                         b4_prior=rep(1,n1),b1_sp=0,b1_sp_indiv=rep(0,length(y)),
                                         return_indiv=T,return_w=T,direct_M=T,name=name)
@@ -1035,14 +1102,14 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       }
       return(list(m_hat=m_hat,m_sigma=m_sigma,k_hat=k_hat,k_sigma=k_sigma,mk_sigma=mk_vcov))
     }
-    diagnose_fit<-function(fit,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,upper=0.99,lower=0.01,dt=T){
+    diagnose_fit<-function(fit,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,upper=0.999,lower=0.001,myEgger,dt=T){
       loc<-c(is.null(p1_sp),is.null(p2_sp),is.null(r_sp))
       #c(T,T,T) full model
       #c(T,T,F) full model with r_sp=1/0
       #c(T,F,T) reduced model
       #c(T,F,F) reduced model with r_sp=1/0
-      #c(F,F,T) Egger model
-      #c(F,F,F) Egger model with r_sp=1/0
+      #c(F,F,T) E/I model
+      #c(F,F,F) E/I model with r_sp=1/0
       m<-trans_proc_p3(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
       x<-m[c("p1","p2","r")]
       
@@ -1051,7 +1118,6 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       if(anyNA(x)){return("fail")}
       if(identical(loc,c(F,F,F))){return("pass")}
       
-      myEgger<-myEgger0
       if((x[1]<lower|x[1]>upper)&loc[1]==T){
         #if(x[3]<lower&loc[3]==T){r_sp<-0;if(dt){message("Model selection: set r_sp = 0.")}}
         #if(x[3]>upper&loc[3]==T){r_sp<-1;if(dt){message("Model selection: set r_sp = 1.")}}
@@ -1077,8 +1143,8 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       }
       return("pass")
     }
-    check_fit<-function(fit1,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,lower=0.01,upper=0.99){
-      if(fit1$code%in%c(0)){
+    check_fit<-function(fit1,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,lower=0.001,upper=0.999){
+      if(fit1$code%in%c(0,1)){
         m<-trans_proc_p3(fit1$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
         m2<-m[c("p1","p2","r")][c(is.null(p1_sp),is.null(p2_sp),is.null(r_sp))]
         j<-m2>upper|m2<lower
@@ -1117,6 +1183,31 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       chisq<-t(eff)%*%solve(vcov)%*%cbind(eff)
       p<-pchisq(chisq,df=length(eff),lower.tail=F)
       return(c(chisq,p))
+    }
+    crt_beta_loc<-function(beta,p1_sp,p2_sp,r_sp,model_u2){
+      exc<-NULL
+      if(!is.null(p1_sp)){
+        exc<-c(exc,"p1")
+      }
+      if(!is.null(p2_sp)){
+        exc<-c(exc,"p2")
+        if(identical(p2_sp,0)){
+          exc<-c(exc,"u1")
+        }
+      }
+      if(!is.null(r_sp)){
+        exc<-c(exc,"r")
+      }
+      if(!model_u2){
+        exc<-c(exc,"u2")
+      }
+      loc<-which(!c("b1","p1","p2","u1","s1","r","u2")%in%exc)
+      beta<-beta[loc]
+      return(list(beta,loc))
+    }
+    ext_estimate<-function(est,beta_start,beta_loc){
+      beta_start[beta_loc]<-est
+      beta_start
     }
     
     #functions for postsample
@@ -1300,33 +1391,197 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       return(list(sign_k1=sign_k1,sign_k2=sign_k2))
     }
     
-    if(is.null(data_p3)){
-      #suit<-apply(g,2,FUN=function(x){identical(as.numeric(sort(unique(x))),c(0,1,2))})
-      #if(sum(suit)==0){stop("No SNP has exactly 3 unique values, or SNPs are not encoded as 0,1,2.")}
-      #g_suit<-myselect(g,which(suit))
-      #g_name<-colnames(g);rm(g)
-      #suit2<-apply(g_suit,2,FUN=function(x){sum(table(x)<control_p3$n_case_lower)==0})
-      #suit[suit==T]<-suit2
-      if(ncol(g)<control_p3$n_snp_limit){
-        stop("The number of SNPs < n_snp_limit.")
-      }
-      
-      #g_suit<-myselect(g_suit,which(suit2))
-      #start_suit<-start[which(suit)]
-      #twosample_data<-update_twosample_data(twosample_data,which(suit),c_inherit)
-      #if(c_inherit){
-      #  c_suit<-c
-      #}else{
-      #  c_suit<-c[which(suit)]
-      #}
-      g_suit<-g;rm(g)
-      c_suit<-c;rm(c)
-      start_suit<-start;rm(start)
-      gc()
-      if(dt){cat(ncol(g_suit),"SNPs are suitable for Procedure 3.\r\n")}
-      
-      if(is.null(data_p3_k)){
-        if(dt){cat("Start preparing stage_1 data required for Procedure 3.\r\n")}
+    if(is.null(data_p3_opt)){
+      if(is.null(data_p3)){
+        #suit<-apply(g,2,FUN=function(x){identical(as.numeric(sort(unique(x))),c(0,1,2))})
+        #if(sum(suit)==0){stop("No SNP has exactly 3 unique values, or SNPs are not encoded as 0,1,2.")}
+        #g_suit<-myselect(g,which(suit))
+        #g_name<-colnames(g);rm(g)
+        #suit2<-apply(g_suit,2,FUN=function(x){sum(table(x)<control_p3$n_case_lower)==0})
+        #suit[suit==T]<-suit2
+        if(ncol(g)<control_p3$n_snp_limit){
+          stop("The number of SNPs < n_snp_limit.")
+        }
+        
+        #g_suit<-myselect(g_suit,which(suit2))
+        #start_suit<-start[which(suit)]
+        #twosample_data<-update_twosample_data(twosample_data,which(suit),c_inherit)
+        #if(c_inherit){
+        #  c_suit<-c
+        #}else{
+        #  c_suit<-c[which(suit)]
+        #}
+        g_suit<-g;rm(g)
+        c_suit<-c;rm(c)
+        start_suit<-start;rm(start)
+        gc()
+        if(dt){cat(ncol(g_suit),"SNPs are suitable for Procedure 3.\r\n")}
+        
+        if(is.null(data_p3_k)){
+          if(dt){cat("Start preparing stage_1 data required for Procedure 3.\r\n")}
+          
+          my_task<-function(my_loc){
+            t0<-Sys.time()
+            my_proc<-0
+            pid<-my_loc[[2]]
+            my_loc<-my_loc[[1]]
+            mywarn<-paste("Child process",pid,"done.")
+            g_suit<-myselect(g_suit,my_loc)
+            start_suit<-start_suit[my_loc]
+            
+            withCallingHandlers(
+              {
+                n1<-ncol(g_suit)
+                k_hat_list<-k_sigma_list<-list()
+                
+                for(i in 1:n1){
+                  if(c_inherit){c_m<-c_suit[[1]]}else{
+                    c_m<-c_suit[[my_loc[i]]]
+                  }
+                  if(identical(as.numeric(length(unique(c_m[,1]))),1)){c_m<-NULL}
+                  out<-crt_data2(y=y,x=x,g=g_suit[,i],c=c_m,start=start_suit[[i]],name=colnames(g_suit)[i],
+                                 twosample_data=update_twosample_data(twosample_data,my_loc[i],c_inherit),
+                                 stage1=T,data_k_hat=NULL,data_k_sigma=NULL,nlminb_control=control_sec$nlminb_control)
+                  k_hat_list[[i]]<-out[[1]]
+                  k_sigma_list[[i]]<-out[[2]]
+                  
+                  if(parallel_trace&mc.cores==1){my_moni("SNP",i=i,n=n1)}
+                  if(mc.cores!=1&parallel_trace){
+                    my_proc<-my_moni2(paste0("Child process ",pid,":"),i,n1,my_proc,time=T,t0=t0)
+                  }
+                }
+                names(k_hat_list)<-names(k_sigma_list)<-colnames(g_suit)
+              }
+              ,warning=function(w){mywarn<<-c(mywarn,w$message);invokeRestart("muffleWarning")}
+            )
+            if(T){
+              if(length(mywarn)>1|parallel_trace){message_parallel(mywarn)}
+            }
+            return(list(k_hat_list,k_sigma_list))
+          }
+          
+          mynum<-cut_num(1:ncol(g_suit),mc.cores)
+          mycheck<-"pass"
+          add_obj_list<-list(var=c("g_suit","start_suit","c_inherit","c_suit","twosample_data","parallel_trace","mc.cores","control_sec"),
+                             env=environment())
+          exec_base_func<-function(x){
+            suppressWarnings(library(MRprollim,quietly=T))
+          }
+          myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
+                                                  print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T,seed=NULL)},warning=function(w){mycheck<<-w})
+          if((!identical(mycheck,"pass"))&mc.cores!=1){
+            warning("An error occurred. Output of my_parallel with errors is returned.")
+            message(mycheck)
+            class(myfit)<-"myerror"
+            return(myfit)
+          }
+          gc()
+          mybind_list_parallel<-function(list_parallel){
+            out1<-out2<-NULL
+            for(i in 1:length(list_parallel)){
+              out1<-c(out1,list_parallel[[i]][[1]])
+              out2<-c(out2,list_parallel[[i]][[2]])
+            }
+            return(list(out1,out2))
+          }
+          myfit<-mybind_list_parallel(myfit)
+          k_hat_list<-myfit[[1]]
+          k_sigma_list<-myfit[[2]]
+        }else{
+          k_hat_list<-data_p3_k$k_hat_list
+          k_sigma_list<-data_p3_k$k_sigma_list
+        }
+        
+        if(control_p3$inspect_data_p3_k){
+          return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
+        }
+        
+        wald_p<-rep(NA,length(k_hat_list))
+        for(i in 1:length(k_hat_list)){
+          wald_p[i]<-mywald_test(k_hat_list[[i]][1:2],k_sigma_list[[i]][1:2,1:2])[2]
+        }
+        
+        #user input
+        u_input<-NULL
+        if(is.character(control_p3$p_snp)){
+          print(formatC(quantile(wald_p,c(0,0.25,0.5,0.75,1),na.rm=T),format="e"),quote=FALSE)
+          while(T){
+            u_input<-eval(parse(text=readline("Please select a cutoff P value:")))
+            u_input2<-readline(paste(sum(wald_p<u_input,na.rm=T),"SNPs remained. Continue? (y/n):"))
+            if(identical(u_input2,"y")){break}
+          }
+          loc_pval<-which(wald_p<u_input)
+        }else{
+          loc_pval<-which(wald_p<control_p3$p_snp)
+          if(dt){cat(length(loc_pval),"SNPs satisfy p_snp.\r\n")}
+        }
+        
+        if(length(loc_pval)<control_p3$n_snp_limit){
+          warning("The number of remaining SNPs < n_snp_limit. Already extracted data are returned.")
+          return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
+        }
+        
+        g_suit<-myselect(g_suit,loc_pval)
+        start_suit<-start_suit[loc_pval]
+        k_hat_list<-k_hat_list[loc_pval]
+        k_sigma_list<-k_sigma_list[loc_pval]
+        wald_p<-wald_p[loc_pval]
+        twosample_data<-update_twosample_data(twosample_data,loc_pval,c_inherit)
+        if(!c_inherit){
+          c_suit<-c_suit[loc_pval]
+        }
+        gc()
+        
+        if(control_p3$s_filter){
+          u_input2<-"y"
+          while(T){
+            if(identical(control_p3$s_k_a_limit,"auto")){
+              k_hat<-matrix(unlist(k_hat_list),ncol=2,byrow=T)
+              control_p3$s_k_a_limit<-apply(k_hat,2,FUN=sd)*control_p3$auto_k_limit
+            }
+            
+            fi<-rep(NA,length(k_hat_list))
+            for(i in 1:length(fi)){
+              se1<-sqrt(k_sigma_list[[i]][1,1])
+              se2<-sqrt(k_sigma_list[[i]][2,2])
+              fi[i]<-(se1*qnorm(0.975)/abs(k_hat_list[[i]][1])<control_p3$s_k_r_limit[1]|se1<control_p3$s_k_a_limit[1])&
+                (se2*qnorm(0.975)/abs(k_hat_list[[i]][2])<control_p3$s_k_r_limit[2]|se2<control_p3$s_k_a_limit[2])
+            }
+            
+            loc<-fi
+            loc1<-which(loc)
+            if(control_p3$s_filter_ask){
+              cat(sum(!loc),"SNPs will be removed due to large standard errors of k_hat.\r\n")
+              cat(sum(loc),"SNPs will remain for the following analysis.\r\n")
+              u_input2<-readline("Continue? (y/n):")
+              if(identical(u_input2,"n")){
+                #auto<-"auto"
+                control_p3$s_k_a_limit<-eval(parse(text=readline("s_k_a_limit:")))
+                control_p3$auto_k_limit<-eval(parse(text=readline("auto_k_limit:")))
+                control_p3$s_k_r_limit<-eval(parse(text=readline("s_k_r_limit:")))
+              }
+            }
+            if(identical(u_input2,"y")){break}
+          }
+          g_suit<-myselect(g_suit,loc1)
+          start_suit<-start_suit[loc1]
+          k_hat_list<-k_hat_list[loc1]
+          k_sigma_list<-k_sigma_list[loc1]
+          wald_p<-wald_p[loc1]
+          twosample_data<-update_twosample_data(twosample_data,loc1,c_inherit)
+          if(!c_inherit){
+            c_suit<-c_suit[loc1]
+          }
+          gc()
+          
+          if(dt){cat(sum(!loc),"SNPs are removed due to large standard errors of k_hat.\r\n")}
+          if(sum(loc)<control_p3$n_snp_limit){
+            warning("The number of remaining SNPs < n_snp_limit. Remaining data are returned.")
+            return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
+          }
+        }
+        
+        if(dt){cat("Start preparing stage_2 data required for Procedure 3.\r\n")}
         
         my_task<-function(my_loc){
           t0<-Sys.time()
@@ -1336,11 +1591,15 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           mywarn<-paste("Child process",pid,"done.")
           g_suit<-myselect(g_suit,my_loc)
           start_suit<-start_suit[my_loc]
+          k_hat_list1<-k_hat_list[my_loc]
+          k_sigma_list1<-k_sigma_list[my_loc]
           
           withCallingHandlers(
             {
               n1<-ncol(g_suit)
-              k_hat_list<-k_sigma_list<-list()
+              m_hat<-k_hat<-matrix(NA,ncol=2,nrow=n1)
+              sigma1_matr<-sigma2_matr<-matrix(NA,ncol=3,nrow=n1)
+              mk_sigma<-list()
               
               for(i in 1:n1){
                 if(c_inherit){c_m<-c_suit[[1]]}else{
@@ -1349,389 +1608,237 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                 if(identical(as.numeric(length(unique(c_m[,1]))),1)){c_m<-NULL}
                 out<-crt_data2(y=y,x=x,g=g_suit[,i],c=c_m,start=start_suit[[i]],name=colnames(g_suit)[i],
                                twosample_data=update_twosample_data(twosample_data,my_loc[i],c_inherit),
-                               stage1=T,data_k_hat=NULL,data_k_sigma=NULL,nlminb_control=control_sec$nlminb_control)
-                k_hat_list[[i]]<-out[[1]]
-                k_sigma_list[[i]]<-out[[2]]
+                               stage1=F,data_k_hat=k_hat_list1[[i]],data_k_sigma=k_sigma_list1[[i]],nlminb_control=control_sec$nlminb_control)
+                m_hat[i,]<-out$m_hat
+                sigma1_matr[i,]<-out$m_sigma
+                k_hat[i,]<-out$k_hat
+                sigma2_matr[i,]<-out$k_sigma
+                mk_sigma[[i]]<-out$mk_sigma
                 
                 if(parallel_trace&mc.cores==1){my_moni("SNP",i=i,n=n1)}
                 if(mc.cores!=1&parallel_trace){
                   my_proc<-my_moni2(paste0("Child process ",pid,":"),i,n1,my_proc,time=T,t0=t0)
                 }
               }
-              names(k_hat_list)<-names(k_sigma_list)<-colnames(g_suit)
+              rownames(m_hat)<-rownames(k_hat)<-rownames(sigma1_matr)<-rownames(sigma2_matr)<-names(mk_sigma)<-colnames(g_suit)
             }
             ,warning=function(w){mywarn<<-c(mywarn,w$message);invokeRestart("muffleWarning")}
           )
           if(T){
             if(length(mywarn)>1|parallel_trace){message_parallel(mywarn)}
           }
-          return(list(k_hat_list,k_sigma_list))
+          return(list(m_hat,sigma1_matr,k_hat,sigma2_matr,mk_sigma))
         }
-        
         mynum<-cut_num(1:ncol(g_suit),mc.cores)
-        mycheck<-"pass"
-        add_obj_list<-list(var=c("g_suit","start_suit","c_inherit","c_suit","twosample_data","parallel_trace","mc.cores","control_sec"),
+        add_obj_list<-list(var=c("g_suit","start_suit","k_hat_list","k_sigma_list","c_inherit","c_suit","twosample_data","parallel_trace","mc.cores","control_sec"),
                            env=environment())
         exec_base_func<-function(x){
-          Sys.sleep(x/10)
-          library(MRprollim,quietly=T)
+          suppressWarnings(library(MRprollim,quietly=T))
         }
+        mycheck<-"pass"
         myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                                print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T)},warning=function(w){mycheck<<-w})
+                                                print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T,seed=NULL)},warning=function(w){mycheck<<-w})
+        
         if((!identical(mycheck,"pass"))&mc.cores!=1){
           warning("An error occurred. Output of my_parallel with errors is returned.")
           message(mycheck)
           class(myfit)<-"myerror"
           return(myfit)
         }
-        gc()
         mybind_list_parallel<-function(list_parallel){
-          out1<-out2<-NULL
+          out1<-out2<-out3<-out4<-out5<-NULL
           for(i in 1:length(list_parallel)){
-            out1<-c(out1,list_parallel[[i]][[1]])
-            out2<-c(out2,list_parallel[[i]][[2]])
+            out1<-rbind(out1,list_parallel[[i]][[1]])
+            out2<-rbind(out2,list_parallel[[i]][[2]])
+            out3<-rbind(out3,list_parallel[[i]][[3]])
+            out4<-rbind(out4,list_parallel[[i]][[4]])
+            out5<-c(out5,list_parallel[[i]][[5]])
           }
-          return(list(out1,out2))
+          return(list(out1,out2,out3,out4,out5))
         }
         myfit<-mybind_list_parallel(myfit)
-        k_hat_list<-myfit[[1]]
-        k_sigma_list<-myfit[[2]]
-      }else{
-        k_hat_list<-data_p3_k$k_hat_list
-        k_sigma_list<-data_p3_k$k_sigma_list
-      }
-      
-      if(control_p3$inspect_data_p3_k){
-        return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
-      }
-      
-      wald_p<-rep(NA,length(k_hat_list))
-      for(i in 1:length(k_hat_list)){
-        wald_p[i]<-mywald_test(k_hat_list[[i]][1:2],k_sigma_list[[i]][1:2,1:2])[2]
-      }
-      
-      #user input
-      u_input<-NULL
-      if(is.character(control_p3$p_snp)){
-        print(formatC(quantile(wald_p,c(0,0.25,0.5,0.75,1),na.rm=T),format="e"),quote=FALSE)
-        while(T){
-          u_input<-eval(parse(text=readline("Please select a cutoff P value:")))
-          u_input2<-readline(paste(sum(wald_p<u_input,na.rm=T),"SNPs remained. Continue? (y/n):"))
-          if(identical(u_input2,"y")){break}
-        }
-        loc_pval<-which(wald_p<u_input)
-      }else{
-        loc_pval<-which(wald_p<control_p3$p_snp)
-        if(dt){cat(length(loc_pval),"SNPs satisfy p_snp.\r\n")}
-      }
-      
-      if(length(loc_pval)<control_p3$n_snp_limit){
-        warning("The number of remaining SNPs < n_snp_limit. Already extracted data are returned.")
-        return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
-      }
-      
-      g_suit<-myselect(g_suit,loc_pval)
-      start_suit<-start_suit[loc_pval]
-      k_hat_list<-k_hat_list[loc_pval]
-      k_sigma_list<-k_sigma_list[loc_pval]
-      wald_p<-wald_p[loc_pval]
-      twosample_data<-update_twosample_data(twosample_data,loc_pval,c_inherit)
-      if(!c_inherit){
-        c_suit<-c_suit[loc_pval]
-      }
-      gc()
-      
-      if(control_p3$s_filter){
-        u_input2<-"y"
-        while(T){
-          if(identical(control_p3$s_k_a_limit,"auto")){
-            k_hat<-matrix(unlist(k_hat_list),ncol=2,byrow=T)
-            control_p3$s_k_a_limit<-apply(k_hat,2,FUN=sd)*control_p3$auto_k_limit
-          }
-          
-          fi<-rep(NA,length(k_hat_list))
-          for(i in 1:length(fi)){
-            se1<-sqrt(k_sigma_list[[i]][1,1])
-            se2<-sqrt(k_sigma_list[[i]][2,2])
-            fi[i]<-(se1*qnorm(0.975)/abs(k_hat_list[[i]][1])<control_p3$s_k_r_limit[1]|se1<control_p3$s_k_a_limit[1])&
-              (se2*qnorm(0.975)/abs(k_hat_list[[i]][2])<control_p3$s_k_r_limit[2]|se2<control_p3$s_k_a_limit[2])
-          }
-          
-          loc<-fi
-          loc1<-which(loc)
-          if(control_p3$s_filter_ask){
-            cat(sum(!loc),"SNPs will be removed due to large standard errors of k_hat.\r\n")
-            cat(sum(loc),"SNPs will remain for the following analysis.\r\n")
-            u_input2<-readline("Continue? (y/n):")
-            if(identical(u_input2,"n")){
-              #auto<-"auto"
-              control_p3$s_k_a_limit<-eval(parse(text=readline("s_k_a_limit:")))
-              control_p3$auto_k_limit<-eval(parse(text=readline("auto_k_limit:")))
-              control_p3$s_k_r_limit<-eval(parse(text=readline("s_k_r_limit:")))
-            }
-          }
-          if(identical(u_input2,"y")){break}
-        }
-        g_suit<-myselect(g_suit,loc1)
-        start_suit<-start_suit[loc1]
-        k_hat_list<-k_hat_list[loc1]
-        k_sigma_list<-k_sigma_list[loc1]
-        wald_p<-wald_p[loc1]
-        twosample_data<-update_twosample_data(twosample_data,loc1,c_inherit)
-        if(!c_inherit){
-          c_suit<-c_suit[loc1]
-        }
+        m_hat<-myfit[[1]]
+        sigma1_matr<-myfit[[2]]
+        k_hat<-myfit[[3]]
+        sigma2_matr<-myfit[[4]]
+        mk_sigma_list<-myfit[[5]]
+        
+        loc<-which(!is.na(m_hat[,1]))
+        m_hat<-myselect(m_hat,loc,"r")
+        k_hat<-myselect(k_hat,loc,"r")
+        sigma1_matr<-myselect(sigma1_matr,loc,"r")
+        sigma2_matr<-myselect(sigma2_matr,loc,"r")
+        mk_sigma_list<-mk_sigma_list[loc]
+        wald_p<-wald_p[loc]
         gc()
-        
-        if(dt){cat(sum(!loc),"SNPs are removed due to large standard errors of k_hat.\r\n")}
-        if(sum(loc)<control_p3$n_snp_limit){
-          warning("The number of remaining SNPs < n_snp_limit. Remaining data are returned.")
-          return(list(k_hat_list=k_hat_list,k_sigma_list=k_sigma_list))
+        if(nrow(m_hat)<control_p3$n_snp_limit){
+          warning("The number of SNPs < n_snp_limit. Some of the SNPs failed to give the data required for Procedure 3. Already extracted data are returned.")
+          return(list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
         }
+      }else{
+        m_hat<-data_p3$m_hat
+        sigma1_matr<-data_p3$m_sigma
+        k_hat<-data_p3$k_hat
+        sigma2_matr<-data_p3$k_sigma
+        mk_sigma_list<-data_p3$mk_sigma_list
+        wald_p<-data_p3$wald_p
+        u_input<-data_p3$u_input
       }
       
-      if(dt){cat("Start preparing stage_2 data required for Procedure 3.\r\n")}
-      
-      my_task<-function(my_loc){
-        t0<-Sys.time()
-        my_proc<-0
-        pid<-my_loc[[2]]
-        my_loc<-my_loc[[1]]
-        mywarn<-paste("Child process",pid,"done.")
-        g_suit<-myselect(g_suit,my_loc)
-        start_suit<-start_suit[my_loc]
-        k_hat_list1<-k_hat_list[my_loc]
-        k_sigma_list1<-k_sigma_list[my_loc]
-        
-        withCallingHandlers(
-          {
-            n1<-ncol(g_suit)
-            m_hat<-k_hat<-matrix(NA,ncol=2,nrow=n1)
-            sigma1_matr<-sigma2_matr<-matrix(NA,ncol=3,nrow=n1)
-            mk_sigma<-list()
-            
-            for(i in 1:n1){
-              if(c_inherit){c_m<-c_suit[[1]]}else{
-                c_m<-c_suit[[my_loc[i]]]
-              }
-              if(identical(as.numeric(length(unique(c_m[,1]))),1)){c_m<-NULL}
-              out<-crt_data2(y=y,x=x,g=g_suit[,i],c=c_m,start=start_suit[[i]],name=colnames(g_suit)[i],
-                             twosample_data=update_twosample_data(twosample_data,my_loc[i],c_inherit),
-                             stage1=F,data_k_hat=k_hat_list1[[i]],data_k_sigma=k_sigma_list1[[i]])
-              m_hat[i,]<-out$m_hat
-              sigma1_matr[i,]<-out$m_sigma
-              k_hat[i,]<-out$k_hat
-              sigma2_matr[i,]<-out$k_sigma
-              mk_sigma[[i]]<-out$mk_sigma
-              
-              if(parallel_trace&mc.cores==1){my_moni("SNP",i=i,n=n1)}
-              if(mc.cores!=1&parallel_trace){
-                my_proc<-my_moni2(paste0("Child process ",pid,":"),i,n1,my_proc,time=T,t0=t0)
-              }
-            }
-            rownames(m_hat)<-rownames(k_hat)<-rownames(sigma1_matr)<-rownames(sigma2_matr)<-names(mk_sigma)<-colnames(g_suit)
-          }
-          ,warning=function(w){mywarn<<-c(mywarn,w$message);invokeRestart("muffleWarning")}
-        )
-        if(T){
-          if(length(mywarn)>1|parallel_trace){message_parallel(mywarn)}
-        }
-        return(list(m_hat,sigma1_matr,k_hat,sigma2_matr,mk_sigma))
-      }
-      mynum<-cut_num(1:ncol(g_suit),mc.cores)
-      add_obj_list<-list(var=c("g_suit","start_suit","k_hat_list","k_sigma_list","c_inherit","c_suit","twosample_data","parallel_trace","mc.cores","control_sec"),
-                         env=environment())
-      exec_base_func<-function(x){
-        Sys.sleep(x/10)
-        library(MRprollim,quietly=T)
-      }
-      mycheck<-"pass"
-      myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                              print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T)},warning=function(w){mycheck<<-w})
-      
-      if((!identical(mycheck,"pass"))&mc.cores!=1){
-        warning("An error occurred. Output of my_parallel with errors is returned.")
-        message(mycheck)
-        class(myfit)<-"myerror"
-        return(myfit)
-      }
-      mybind_list_parallel<-function(list_parallel){
-        out1<-out2<-out3<-out4<-out5<-NULL
-        for(i in 1:length(list_parallel)){
-          out1<-rbind(out1,list_parallel[[i]][[1]])
-          out2<-rbind(out2,list_parallel[[i]][[2]])
-          out3<-rbind(out3,list_parallel[[i]][[3]])
-          out4<-rbind(out4,list_parallel[[i]][[4]])
-          out5<-c(out5,list_parallel[[i]][[5]])
-        }
-        return(list(out1,out2,out3,out4,out5))
-      }
-      myfit<-mybind_list_parallel(myfit)
-      m_hat<-myfit[[1]]
-      sigma1_matr<-myfit[[2]]
-      k_hat<-myfit[[3]]
-      sigma2_matr<-myfit[[4]]
-      mk_sigma_list<-myfit[[5]]
-      
-      loc<-which(!is.na(m_hat[,1]))
-      m_hat<-myselect(m_hat,loc,"r")
-      k_hat<-myselect(k_hat,loc,"r")
-      sigma1_matr<-myselect(sigma1_matr,loc,"r")
-      sigma2_matr<-myselect(sigma2_matr,loc,"r")
-      mk_sigma_list<-mk_sigma_list[loc]
-      wald_p<-wald_p[loc]
-      gc()
-      if(nrow(m_hat)<control_p3$n_snp_limit){
-        warning("The number of SNPs < n_snp_limit. Some of the SNPs failed to give the data required for Procedure 3. Already extracted data are returned.")
+      if(control_p3$inspect_data_p3){
         return(list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
       }
-    }else{
-      m_hat<-data_p3$m_hat
-      sigma1_matr<-data_p3$m_sigma
-      k_hat<-data_p3$k_hat
-      sigma2_matr<-data_p3$k_sigma
-      mk_sigma_list<-data_p3$mk_sigma_list
-      wald_p<-data_p3$wald_p
-      u_input<-data_p3$u_input
-    }
-    
-    if(control_p3$inspect_data_p3){
-      return(list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
     }
     
     if(control_p3$nome==F){
-      #est parameters
-      if(is.null(control_est_k_post$f)){
-        if(identical(control_est_k_prior$p_snp,"max")){
-          k_prior_p<-max(wald_p)
-        }else if(identical(control_est_k_prior$p_snp,"previous")){
-          if(is.character(control_p3$p_snp)){
-            k_prior_p<-u_input
-          }else{
-            k_prior_p<-control_p3$p_snp
-          }
-        }else{
-          k_prior_p<-control_est_k_prior$p_snp
-        }
-        
-        if(any(k_prior_p<wald_p)){
-          message("SNPs with wald_p > control_est_k_prior$p_snp detected. max(wald_p) is used for est_k_prior.")
-          k_prior_p<-max(wald_p)
-        }
-        if(dt){cat("Cutoff P value used for est_k_prior:",k_prior_p,"\r\n")}
-        
-        if(k_prior_p<control_est_k_prior$p0_cut){
-          control_est_k_prior$p0_sp<-0
-          cat("p0_sp = 0 is used for est_k_prior.\r\n")
-        }
-        
-        fit_k<-tryCatch({est_k_prior(k_hat,sigma2_matr,NULL,NULL,p_cut=k_prior_p,u1_sp=control_est_k_prior$u1_sp,p0_sp=control_est_k_prior$p0_sp,start=control_est_k_prior$start,
-                                     dt=dt,nlminb_control=control_est_k_prior$nlminb_control)},error=function(e){e})
-        
-        if("error"%in%class(fit_k)){
-          warning(fit_k)
-          if(k_prior_p<1e-9){
-            warning("Cutoff P value may be too small for est_k_prior. Normal posterior will be used.")
-            fit_k<-list(par=list(p0=0,u1=0,s12=var(k_hat[,1]),s22=var(k_hat[,2]),rho=1),nlm_out=fit_k)
-          }else{
-            message("Data already extracted are returned.")
-            return(list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
-          }
-        }
-        if(dt){print(unlist(fit_k$par))}
-      }
-      
-      
-      v2s_matr<-function(x){
-        matrix(c(x[1],x[2],x[2],x[3]),2)
-      }
-      if(dt){cat("Start sampling k posterior distribution.\r\n")}
-      gc()
-      
-      my_task<-function(my_loc){
-        t0<-Sys.time()
-        my_proc<-0
-        pid<-my_loc[[2]]
-        my_loc<-my_loc[[1]]
-        mywarn<-paste("Child process",pid,"done.")
-        
-        k_hat_m<-myselect(k_hat,my_loc,"r")
-        sigma2_matr_m<-myselect(sigma2_matr,my_loc,"r")
-        n1<-nrow(k_hat_m)
-        post_sample_k1<-post_sample_k2<-matrix(0,nrow=n1,ncol=control_est_k_post$n_post)
-        p_sigma<-matrix(c(fit_k$par$s12,sqrt(fit_k$par$s12*fit_k$par$s22)*fit_k$par$rho,
-                          sqrt(fit_k$par$s12*fit_k$par$s22)*fit_k$par$rho,fit_k$par$s22),2)
-        my_name<-rownames(k_hat_m)
-        withCallingHandlers(
-          {
-            for(i in 1:n1){
-              if(is.null(control_est_k_post$f)){
-                post<-get_postsample(k_hat_m[i,],v2s_matr(sigma2_matr_m[i,]),p_cover=control_est_k_post$p_cover,n=control_est_k_post$n_post,n_f1=control_est_k_post$n0,p_p0=fit_k$par$p0,p_u1=fit_k$par$u1,
-                                     p_sigma=p_sigma,name=my_name[i])
-              }else{
-                post<-control_est_k_post$f(k_hat_m[i,],v2s_matr(sigma2_matr_m[i,]))
-              }
-              post_sample_k1[i,]<-post[,1]
-              post_sample_k2[i,]<-post[,2]
-              if(mc.cores==1&parallel_trace){my_moni("SNP",i=i,n=n1)}
-              if(mc.cores!=1&parallel_trace){
-                my_proc<-my_moni2(paste0("Child process ",pid,":"),i,n1,my_proc,time=T,t0=t0)
-              }
+      if(is.null(data_p3_opt)){
+        #est parameters
+        if(is.null(control_est_k_post$f)){
+          if(identical(control_est_k_prior$p_snp,"max")){
+            k_prior_p<-max(wald_p)
+          }else if(identical(control_est_k_prior$p_snp,"previous")){
+            if(is.character(control_p3$p_snp)){
+              k_prior_p<-u_input
+            }else{
+              k_prior_p<-control_p3$p_snp
             }
-          },
-          warning=function(w){mywarn<<-c(mywarn,w$message);invokeRestart("muffleWarning")})
-        if(T){
-          #if(length(mywarn)>1|parallel_trace){message_parallel(mywarn)}
-          if(parallel_trace){message_parallel(mywarn[1])}
+          }else{
+            k_prior_p<-control_est_k_prior$p_snp
+          }
+          
+          if(any(k_prior_p<wald_p)){
+            message("SNPs with wald_p > control_est_k_prior$p_snp detected. max(wald_p) is used for est_k_prior.")
+            k_prior_p<-max(wald_p)
+          }
+          if(dt){cat("Cutoff P value used for est_k_prior:",k_prior_p,"\r\n")}
+          
+          if(k_prior_p<control_est_k_prior$p0_cut){
+            control_est_k_prior$p0_sp<-0
+            cat("p0_sp = 0 is used for est_k_prior.\r\n")
+          }
+          
+          if(control_est_k_prior$auto_s){
+            auto_s_out<-apply(k_hat,2,FUN=var)
+            stopifnot(!anyNA(auto_s_out))
+            control_est_k_prior$start[3:4]<-floor(log(auto_s_out))
+          }
+          fit_k<-tryCatch({est_k_prior(k_hat,sigma2_matr,NULL,NULL,p_cut=k_prior_p,u1_sp=control_est_k_prior$u1_sp,p0_sp=control_est_k_prior$p0_sp,start=control_est_k_prior$start,
+                                       p0_start=control_est_k_prior$p0_start,mc.cores=mc.cores,dt=dt,PSOCK=PSOCK,
+                                       nlminb_control=control_est_k_prior$nlminb_control)},error=function(e){e})
+
+          if("error"%in%class(fit_k)){
+            warning(fit_k)
+            if(k_prior_p<1e-9){
+              warning("Cutoff P value may be too small for est_k_prior. Normal posterior will be used.")
+              fit_k<-list(par=list(p0=0,u1=0,s12=var(k_hat[,1]),s22=var(k_hat[,2]),rho=1),nlm_out=fit_k)
+            }else{
+              message("Data already extracted are returned.")
+              return(list(fit_k_prior=fit_k,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
+            }
+          }
+          if(dt){print(unlist(fit_k$par))}
         }
-        return(list(post_sample_k1,post_sample_k2,mywarn))
-      }
-      
-      mynum<-cut_num(1:nrow(m_hat),mc.cores)
-      add_obj_list<-list(var=c("k_hat","sigma2_matr","fit_k","control_est_k_post","parallel_trace","mc.cores"),
-                         env=environment())
-      exec_base_func<-function(x){
-        Sys.sleep(x/10)
-        library(MRprollim,quietly=T)
-      }
-      mycheck<-"pass"
-      myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                              print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T)},warning=function(w){mycheck<<-w})
-      
-      if((!identical(mycheck,"pass"))&mc.cores!=1){
-        warning("An error occurred. Output of my_parallel with errors is returned.")
-        message(mycheck)
-        class(myfit)<-"myerror"
-        return(myfit)
-      }
-      mybind_list_parallel<-function(list_parallel){
-        out1<-out2<-out3<-NULL
-        for(i in 1:length(list_parallel)){
-          out1<-rbind(out1,list_parallel[[i]][[1]])
-          out2<-rbind(out2,list_parallel[[i]][[2]])
-          out3<-c(out3,list_parallel[[i]][[3]])
+        
+        v2s_matr<-function(x){
+          matrix(c(x[1],x[2],x[2],x[3]),2)
         }
-        return(list(out1,out2,out3))
-      }
-      myfit<-mybind_list_parallel(myfit)
-      post_sample_k1<-myfit[[1]]
-      post_sample_k2<-myfit[[2]]
-      post_messages<-myfit[[3]]
-      if(length(post_messages)>mc.cores){message("Some SNPs may be outliers. Normal posterior is used. See post_messages.")}
-      
-      prepare_p3.1<-function(k_hat,post_sample_k1,post_sample_k2,mk_sigma_list){
-        out1<-out2<-matrix(NA,nrow=nrow(post_sample_k1),ncol=ncol(post_sample_k1))
-        out3<-list()
-        for(i in 1:nrow(k_hat)){
-          s<-mk_sigma_list[[i]][1:2,3:4]%*%solve(mk_sigma_list[[i]][3:4,3:4])
-          x<-cbind(k_hat[i,1]-post_sample_k1[i,],k_hat[i,2]-post_sample_k2[i,])%*%t(s)
-          out1[i,]<-x[,1]
-          out2[i,]<-x[,2]
-          out3[[i]]<-mk_sigma_list[[i]][1:2,1:2]-s%*%mk_sigma_list[[i]][3:4,1:2]
+        if(dt){cat("Start sampling k posterior distribution.\r\n")}
+        gc()
+        
+        my_task<-function(my_loc){
+          t0<-Sys.time()
+          my_proc<-0
+          pid<-my_loc[[2]]
+          my_loc<-my_loc[[1]]
+          mywarn<-paste("Child process",pid,"done.")
+          
+          k_hat_m<-myselect(k_hat,my_loc,"r")
+          sigma2_matr_m<-myselect(sigma2_matr,my_loc,"r")
+          n1<-nrow(k_hat_m)
+          post_sample_k1<-post_sample_k2<-matrix(0,nrow=n1,ncol=control_est_k_post$n_post)
+          p_sigma<-matrix(c(fit_k$par$s12,sqrt(fit_k$par$s12*fit_k$par$s22)*fit_k$par$rho,
+                            sqrt(fit_k$par$s12*fit_k$par$s22)*fit_k$par$rho,fit_k$par$s22),2)
+          my_name<-rownames(k_hat_m)
+          withCallingHandlers(
+            {
+              for(i in 1:n1){
+                if(is.null(control_est_k_post$f)){
+                  post<-get_postsample(k_hat_m[i,],v2s_matr(sigma2_matr_m[i,]),p_cover=control_est_k_post$p_cover,n=control_est_k_post$n_post,n_f1=control_est_k_post$n0,p_p0=fit_k$par$p0,p_u1=fit_k$par$u1,
+                                       p_sigma=p_sigma,name=my_name[i])
+                }else{
+                  post<-control_est_k_post$f(k_hat_m[i,],v2s_matr(sigma2_matr_m[i,]))
+                }
+                post_sample_k1[i,]<-post[,1]
+                post_sample_k2[i,]<-post[,2]
+                if(mc.cores==1&parallel_trace){my_moni("SNP",i=i,n=n1)}
+                if(mc.cores!=1&parallel_trace){
+                  my_proc<-my_moni2(paste0("Child process ",pid,":"),i,n1,my_proc,time=T,t0=t0)
+                }
+              }
+            },
+            warning=function(w){mywarn<<-c(mywarn,w$message);invokeRestart("muffleWarning")})
+          if(T){
+            #if(length(mywarn)>1|parallel_trace){message_parallel(mywarn)}
+            if(parallel_trace){message_parallel(mywarn[1])}
+          }
+          return(list(post_sample_k1,post_sample_k2,mywarn))
         }
-        return(list(f1_matr=out1,f2_matr=out2,sigma_prime_list=out3))
+        
+        mynum<-cut_num(1:nrow(m_hat),mc.cores)
+        add_obj_list<-list(var=c("k_hat","sigma2_matr","fit_k","control_est_k_post","parallel_trace","mc.cores"),
+                           env=environment())
+        exec_base_func<-function(x){
+          suppressWarnings(library(MRprollim,quietly=T))
+        }
+        mycheck<-"pass"
+        myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
+                                                print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T,seed=round(runif(1,1,.Machine$integer.max)))},warning=function(w){mycheck<<-w})
+        
+        if((!identical(mycheck,"pass"))&mc.cores!=1){
+          warning("An error occurred. Output of my_parallel with errors is returned.")
+          message(mycheck)
+          class(myfit)<-"myerror"
+          return(myfit)
+        }
+        mybind_list_parallel<-function(list_parallel){
+          out1<-out2<-out3<-NULL
+          for(i in 1:length(list_parallel)){
+            out1<-rbind(out1,list_parallel[[i]][[1]])
+            out2<-rbind(out2,list_parallel[[i]][[2]])
+            out3<-c(out3,list_parallel[[i]][[3]])
+          }
+          return(list(out1,out2,out3))
+        }
+        myfit<-mybind_list_parallel(myfit)
+        post_sample_k1<-myfit[[1]]
+        post_sample_k2<-myfit[[2]]
+        post_messages<-myfit[[3]]
+        if(length(post_messages)>mc.cores){message("Some SNPs may be outliers. Normal posterior is used. See post_messages.")}
+        
+        prepare_p3.1<-function(k_hat,post_sample_k1,post_sample_k2,mk_sigma_list){
+          out1<-out2<-matrix(NA,nrow=nrow(post_sample_k1),ncol=ncol(post_sample_k1))
+          out3<-list()
+          for(i in 1:nrow(k_hat)){
+            s<-mk_sigma_list[[i]][1:2,3:4]%*%solve(mk_sigma_list[[i]][3:4,3:4])
+            x<-cbind(k_hat[i,1]-post_sample_k1[i,],k_hat[i,2]-post_sample_k2[i,])%*%t(s)
+            out1[i,]<-x[,1]
+            out2[i,]<-x[,2]
+            out3[[i]]<-mk_sigma_list[[i]][1:2,1:2]-s%*%mk_sigma_list[[i]][3:4,1:2]
+          }
+          return(list(f1_matr=out1,f2_matr=out2,sigma_prime_list=out3))
+        }
+        data_opt_p3.1<-prepare_p3.1(k_hat,post_sample_k1,post_sample_k2,mk_sigma_list)
+      }else{
+        m_hat<-data_p3_opt$m_hat
+        sigma1_matr<-data_p3_opt$m_sigma
+        k_hat<-data_p3_opt$k_hat
+        sigma2_matr<-data_p3_opt$k_sigma
+        mk_sigma_list<-data_p3_opt$mk_sigma_list
+        post_sample_k1<-data_p3_opt$post_sample_k1;post_sample_k2<-data_p3_opt$post_sample_k2
+        data_opt_p3.1<-data_p3_opt$data_opt_p3.1
+        wald_p<-data_p3_opt$wald_p;u_input<-data_p3_opt$u_input;post_messages<-data_p3_opt$post_messages
+        fit_k<-data_p3_opt$fit_k
       }
-      data_opt_p3.1<-prepare_p3.1(k_hat,post_sample_k1,post_sample_k2,mk_sigma_list)
       
       if(control_p3$inspect_data_p3_opt){
         return(list(m_hat=m_hat,
@@ -1741,12 +1848,24 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                     mk_sigma_list=mk_sigma_list,
                     post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                     data_opt_p3.1=data_opt_p3.1,
-                    wald_p=wald_p,u_input=u_input,post_messages=post_messages))
+                    wald_p=wald_p,u_input=u_input,post_messages=post_messages,
+                    fit_k=fit_k))
       }
       
       myEgger0<-control_p3$Egger
       signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,myEgger0)
-      Egger_info<-"NULL"
+      if(identical(myEgger0,"auto")){
+        Egger_info<-"NULL"
+      }else{
+        if(myEgger0){Egger_info<-"Egger"}else{
+          Egger_info<-"intercept"
+        }
+      }
+      if(control_p3$auto_s1){
+        beta_start[5]<-floor(log(var(m_hat[,1])))
+        control_gs$lower[5]<-beta_start[5]-control_gs$auto_s1_k
+        control_gs$upper[5]<-beta_start[5]+control_gs$auto_s1_k
+      }
       
       #check initial value
       if(dt){cat("Check initial value.\r\n")}
@@ -1783,46 +1902,54 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       }
       
       #optimizing
+      est_proc_cont_p3.1_f0<-function(...){
+        out<-MRprollim:::est_proc_cont_p3.1_f(...)
+        if(is.na(out)){return(Inf)}
+        out
+      }
       if(mc.cores>1&control_gs$global_search&control_gs$gs_type=="genoud"){
-        if(Sys.info()[1]=="Windows"|PSOCK){
-          mycl<-parallel::makePSOCKcluster(mc.cores)
-          add_obj_list<-list(var=c("m_hat","control_p3","post_sample_k1","post_sample_k2",
-                                   "data_opt_p3.1"),env=environment())
-          parallel::clusterExport(mycl,varlist=add_obj_list$var,envir=add_obj_list$env)
-        }else{
-          mycl<-parallel::makeForkCluster(mc.cores)
-        }
+        eval(parse(text=paste0(".mrp_p3_cl<-parallel::makePSOCKcluster(",mc.cores,")")),envir=.GlobalEnv)
+        add_par_list<-check_genoud_par(...,return_list=T)
+        assign(".mrp_p3_f1",withWarnings,envir=.GlobalEnv)
+        eval(expression(environment(.mrp_p3_f1)<-.GlobalEnv),envir=.GlobalEnv)
+        assign(".mrp_p3_f2",est_proc_cont_p3.1_f0,envir=.GlobalEnv)
+        eval(expression(environment(.mrp_p3_f2)<-.GlobalEnv),envir=.GlobalEnv)
       }else{
         mycl<-F
       }
       if(dt){cat("Start optimizing.\r\n")}
       auto_c<-1
       fit_gs<-fit_nlminb<-list()
+      beta_start0<-beta_start
+      stopifnot(length(beta_start0)==7)
       while(T){
+        crtb<-crt_beta_loc(beta_start0,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
         if(auto_c!=1){
           if(identical(p1_sp,1)&identical(p2_sp,0)&is.null(r_sp)&identical(model_u2,T)&identical(myEgger0,"auto")){
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,F)
             initial_test1<-suppressWarnings(est_proc_cont_p3.1_f(beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                                  f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                                                  post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,T)
             initial_test2<-suppressWarnings(est_proc_cont_p3.1_f(beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                                  f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                                                  post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             if(initial_test1%in%c(NA,NaN,Inf,-Inf)|initial_test2%in%c(NA,NaN,Inf,-Inf)){initial_test<-NA}else{initial_test<-0}
           }else{
             initial_test<-suppressWarnings(est_proc_cont_p3.1_f(beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                                 f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                                                 post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                                                p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                                p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
           }
         }
         if(initial_test%in%c(NA,NaN,Inf,-Inf)){
           fit$code<-"inappropriate initial values for the next model"
           warning("Inappropriate initial values for the next model.")
-          return(list(fit=fit,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+          return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                       post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                       mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
         }else{
@@ -1831,19 +1958,191 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
             fit_int<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                   f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                                   post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                  control=control_p3$nlminb_control))},
+                                                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                  control=nlminb_c_list))},
                               error=function(e){return(e)})
+            fit_nlminb<-c(fit_nlminb,list(fit_int))
+            if(control_gs$global_search&control_gs$global_search_EI){
+              if(control_gs$gs_type=="genoud"){
+                if(mc.cores>1){
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size.EI=genoud_control$pop.size.EI,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,
+                                    signk=signk,
+                                    data_opt_p3.1=data_opt_p3.1,
+                                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size.EI,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    f1_matr=.mrp_p3_par$data_opt_p3.1$f1_matr,f2_matr=.mrp_p3_par$data_opt_p3.1$f2_matr,sigma_prime_list=.mrp_p3_par$data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=.mrp_p3_par$post_sample_k1,post_sample_k2=.mrp_p3_par$post_sample_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1_int<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1_int<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3.1_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size.EI,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
+                }
+              }else{
+                fit1_int<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3.1_f0,par=beta_start,
+                                                 lower=control_gs$lower[beta_loc],
+                                                 upper=control_gs$upper[beta_loc],
+                                                 control=update_GenSA(control_gs$GenSA_control,1),
+                                                 m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                                 f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                                                 post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
+                )},error=function(e){return(e)})
+              }
+              
+              fit_gs<-c(fit_gs,list(fit1_int))
+              
+              if((!"error"%in%class(fit1_int))&(!"error"%in%class(fit_int))){
+                if("mywarning"%in%class(fit1_int)){
+                  warning_out<-fit1_int$warning[!stringr::str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  if(length(warning_out)>0){
+                    message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
+                  }
+                  fit1_int<-fit1_int$value
+                }
+                if(fit1_int$value<fit_int$minimum){
+                  fit_int<-format_fit1(fit1_int)
+                }
+              }else{
+                message("Errors detected in fit_nlminb or fit_gs.")
+              }
+            }
+            
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,T)
             fit_egger<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                     f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                                     post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                    control=control_p3$nlminb_control))},
+                                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                    control=nlminb_c_list))},
                                 error=function(e){return(e)})
+            fit_nlminb<-c(fit_nlminb,list(fit_egger))
+            if(control_gs$global_search&control_gs$global_search_EI){
+              if(control_gs$gs_type=="genoud"){
+                if(mc.cores>1){
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size.EI=genoud_control$pop.size.EI,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,
+                                    signk=signk,
+                                    data_opt_p3.1=data_opt_p3.1,
+                                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size.EI,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    f1_matr=.mrp_p3_par$data_opt_p3.1$f1_matr,f2_matr=.mrp_p3_par$data_opt_p3.1$f2_matr,sigma_prime_list=.mrp_p3_par$data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=.mrp_p3_par$post_sample_k1,post_sample_k2=.mrp_p3_par$post_sample_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1_egger<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1_egger<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3.1_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size.EI,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
+                }
+              }else{
+                fit1_egger<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3.1_f0,par=beta_start,
+                                                   lower=control_gs$lower[beta_loc],
+                                                   upper=control_gs$upper[beta_loc],
+                                                   control=update_GenSA(control_gs$GenSA_control,1),
+                                                   m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                                   f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                                                   post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                                   p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
+                )},error=function(e){return(e)})
+              }
+              
+              fit_gs<-c(fit_gs,list(fit1_egger))
+              
+              if((!"error"%in%class(fit1_egger))&(!"error"%in%class(fit_egger))){
+                if("mywarning"%in%class(fit1_egger)){
+                  warning_out<-fit1_egger$warning[!stringr::str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  if(length(warning_out)>0){
+                    message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
+                  }
+                  fit1_egger<-fit1_egger$value
+                }
+                if(fit1_egger$value<fit_egger$minimum){
+                  fit_egger<-format_fit1(fit1_egger)
+                }
+              }else{
+                message("Errors detected in fit_nlminb or fit_gs.")
+              }
+            }
+            
             if("error"%in%class(fit_int)|"error"%in%class(fit_egger)){
               warning("Errors detected in fit_int or fit_egger. Data_input and nlminb_output are returned.")
-              return(list(fit_int=fit_int,fit_egger=fit_egger,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+              return(list(fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                           post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                           mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
             }
@@ -1861,52 +2160,90 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
             fit<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                               f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                               post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                              control=control_p3$nlminb_control))},
+                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                              control=nlminb_c_list))},
                           error=function(e){return(e)})
-            
-            if(control_gs$global_search&!identical(p1_sp,1)){
-              est_proc_cont_p3.1_f0<-function(...){
-                out<-est_proc_cont_p3.1_f(...)
-                if(is.na(out)){return(Inf)}
-                out
+            fit_nlminb<-c(fit_nlminb,list(fit))
+            if(control_gs$global_search){
+              if(identical(p1_sp,1)&identical(p2_sp,0)){
+                pop.size<-genoud_control$pop.size.EI
+                maxit.exc<-1
+              }else{
+                pop.size<-genoud_control$pop.size
+                maxit.exc<-2
               }
+              
               if(control_gs$gs_type=="genoud"){
                 if(mc.cores>1){
-                  add_obj_list<-list(var=c("signk","p1_sp","p2_sp","r_sp","model_u2"),env=environment())
-                  parallel::clusterExport(mycl,varlist=add_obj_list$var,envir=add_obj_list$env)
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=pop.size,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,
+                                    signk=signk,
+                                    data_opt_p3.1=data_opt_p3.1,
+                                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    f1_matr=.mrp_p3_par$data_opt_p3.1$f1_matr,f2_matr=.mrp_p3_par$data_opt_p3.1$f2_matr,sigma_prime_list=.mrp_p3_par$data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=.mrp_p3_par$post_sample_k1,post_sample_k2=.mrp_p3_par$post_sample_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3.1_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=pop.size,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
                 }
-                fit1<-tryCatch({withWarnings(rgenoud::genoud(
-                  fn=est_proc_cont_p3.1_f0,nvars=length(beta_start),
-                  starting.values=beta_start,
-                  print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size,
-                  Domains=cbind(control_gs$lower,control_gs$upper),cluster=mycl,
-                  solution.tolerance=genoud_control$solution.tolerance,
-                  gradient.check=genoud_control$gradient.check,
-                  control=genoud_control$optim_control,
-                  m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                  f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
-                  post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2
-                ))},error=function(e){return(e)})
               }else{
                 fit1<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3.1_f0,par=beta_start,
-                                             lower=control_gs$lower,
-                                             upper=control_gs$upper,
-                                             control=control_gs$GenSA_control,
+                                             lower=control_gs$lower[beta_loc],
+                                             upper=control_gs$upper[beta_loc],
+                                             control=update_GenSA(control_gs$GenSA_control,maxit.exc),
                                              m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                              f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                              post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2
+                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
                 )},error=function(e){return(e)})
               }
               
               fit_gs<-c(fit_gs,list(fit1))
-              fit_nlminb<-c(fit_nlminb,list(fit))
               
               if((!"error"%in%class(fit1))&(!"error"%in%class(fit))){
                 if("mywarning"%in%class(fit1)){
-                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"Out of Boundary individual")]
+                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -1928,10 +2265,13 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                       mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
         }
         
+        fit$estimate0<-fit$estimate
+        fit$estimate<-ext_estimate(fit$estimate,beta_start0,beta_loc)
+        
         if(control_p3$model_select==F){break}
-        diag_out<-diagnose_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper,dt=dt)
+        diag_out<-diagnose_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper,myEgger=myEgger0,dt=dt)
         if(identical(diag_out,"pass")){
-          if((median(sqrt(sigma1_matr[,1]))*0.01>sqrt(exp(fit$estimate[5])))&!identical(p1_sp,1)){
+          if((median(sqrt(sigma1_matr[,1]))*s1_cut_k>sqrt(exp(fit$estimate[5])))&!identical(p1_sp,1)){
             message("Model selection: to Egger or intercept model. (s1 may be too small: ",sqrt(exp(fit$estimate[5])),")")
             diag_out<-list(p1_sp=1,p2_sp=0,r_sp=NULL,model_u2=T,myEgger=myEgger0)
           }else{
@@ -1949,37 +2289,67 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
         auto_c<-auto_c+1
       }
       if(mc.cores>1&control_gs$global_search&control_gs$gs_type=="genoud"){
-        parallel::stopCluster(mycl)
+        eval(expression({parallel::stopCluster(.mrp_p3_cl);rm(.mrp_p3_cl,.mrp_p3_f1,.mrp_p3_f2,.mrp_p3_par,.mrp_p3_fit)}),envir=.GlobalEnv)
+        gc()
       }
       
       #use nlminb to check the gradients
-      if(tryCatch({fit$message$type=="GenSA or genoud"},error=function(e){F})){
+      if(tryCatch({identical(fit$message$type,"GenSA or genoud")},error=function(e){F})){
         if(dt){cat("Genoud or GenSA finds estimates with a higher likelihood.\r\n")}
-        fit0<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=fit$estimate,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+        crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
+        fit0<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                            f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
                                            post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                                           p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                           control=control_p3$nlminb_control))},
+                                           p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                           control=nlminb_c_list))},
                        error=function(e){return(e)})
+        fit_nlminb<-c(fit_nlminb,list(fit0))
         if("error"%in%class(fit0)){
           fit$code<-"nlminb outputs errors with the solutions given by genoud or GenSA"
         }else{
           fit<-fit0
+          fit$estimate0<-fit$estimate
+          fit$estimate<-ext_estimate(fit$estimate,beta_start0,beta_loc)
         }
       }
       
       #in case if model_select=F
       fit$code<-check_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
-      if(!fit$code%in%c(0)){
-        warning("nlminb outputs abnormal convergence code for the current solutions")
-        if(!fit$code%in%c(1)){
-          warning("Already extracted data are returned.")
-          return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
-                      post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
-                      mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
+      if(fit$code%in%c(0,1)){
+        crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
+        fit0<-tryCatch({suppressWarnings(nlm(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat,sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                             f1_matr=data_opt_p3.1$f1_matr,f2_matr=data_opt_p3.1$f2_matr,sigma_prime_list=data_opt_p3.1$sigma_prime_list, 
+                                             post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                             hessian=nlm_c_list$hessian,
+                                             fscale=nlm_c_list$fscale,print.level=nlm_c_list$print.level,ndigit=nlm_c_list$ndigit,
+                                             gradtol=nlm_c_list$gradtol,stepmax=nlm_c_list$stepmax,steptol=nlm_c_list$steptol[1],
+                                             iterlim=nlm_c_list$iterlim,check.analyticals=nlm_c_list$check.analyticals))},
+                       error=function(e){return(e)})
+        fit_nlminb<-c(fit_nlminb,list(fit0))
+        if("error"%in%class(fit0)){
+          fit$code<-"nlm outputs errors for the current solution"
+        }else{
+          if(anyNA(fit0$gradient)){fit0$code<-"NA_gradient"}
+          fit0$message<-paste0("nlm code: ",fit0$code)
+          if(fit0$code%in%c(1,2,3)){fit0$code<-0}else{fit0$code<-1}
+          fit0$estimate0<-fit0$estimate
+          fit0$estimate<-ext_estimate(fit0$estimate,beta_start0,beta_loc)
+          fit0$code<-check_fit(fit0,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
+          fit<-fit0
         }
       }
-      
+      if(!fit$code%in%c(0)){
+        message("Abnormal optimization code; already extracted data are returned.")
+        return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+                    post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
+                    mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
+      }
+
       #bootstrap
       vcov_boot<-out_boot<-NULL
       if(boot_se){
@@ -1993,20 +2363,25 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           n_rep<-n_rep[[1]]
           my_proc<-0
           out_boot<-NULL
+          
+          crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+          beta_start<-crtb[[1]]
+          beta_loc<-crtb[[2]]
           for(i in 1:n_rep){
             id<-sample(1:n1,n1,replace=T)
             signk<-crt_signk(k_hat[id,],p1_sp,p2_sp,model_u2,myEgger0)
-            initial_test<-suppressWarnings(est_proc_cont_p3.1_f(fit$estimate,m_matrix=m_hat[id,],sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+            initial_test<-suppressWarnings(est_proc_cont_p3.1_f(beta_start,m_matrix=m_hat[id,],sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                                 f1_matr=data_opt_p3.1$f1_matr[id,],f2_matr=data_opt_p3.1$f2_matr[id,],sigma_prime_list=data_opt_p3.1$sigma_prime_list[id], 
                                                                 post_sample_k1=post_sample_k1[id,],post_sample_k2=post_sample_k2[id,],
-                                                                p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                                p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             if(initial_test%in%c(NA,NaN,Inf,-Inf)){fit1<-list(estimate=NA,code=NA)}else{
-              fit1<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=fit$estimate,m_matrix=m_hat[id,],sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+              fit1<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3.1_f,p=beta_start,m_matrix=m_hat[id,],sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                                  f1_matr=data_opt_p3.1$f1_matr[id,],f2_matr=data_opt_p3.1$f2_matr[id,],sigma_prime_list=data_opt_p3.1$sigma_prime_list[id], 
                                                  post_sample_k1=post_sample_k1[id,],post_sample_k2=post_sample_k2[id,],
-                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                 control=control_p3$nlminb_control))},
+                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                 control=nlminb_c_list))},
                              error=function(e){return(list(estimate=NA,code=NA))})
+              fit1$estimate<-ext_estimate(fit1$estimate,beta_start0,beta_loc)
               fit1$code<-check_fit(fit1,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
             }
             if(fit1$code%in%c(0)){
@@ -2027,14 +2402,13 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
         }
         add_obj_list<-list(var=c("n1","k_hat","p1_sp","p2_sp","model_u2","myEgger0","r_sp",
                                  "m_hat","control_p3","post_sample_k1","post_sample_k2",
-                                 "data_opt_p3.1","fit"),
+                                 "data_opt_p3.1","fit","beta_start0"),
                            env=environment())
         exec_base_func<-function(x){
-          Sys.sleep(x/10)
-          library(MRprollim,quietly=T)
+          suppressWarnings(library(MRprollim,quietly=T))
         }
         myfit<-my_parallel(X=mylist,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                           print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T)
+                           print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T,seed=round(runif(1,1,.Machine$integer.max)))
         mybind_list_parallel<-function(list){
           out<-NULL
           for(i in 1:length(list)){
@@ -2043,7 +2417,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           return(out)
         }
         out_boot<-mybind_list_parallel(myfit)
-        if(nrow(out_boot)<n_boot){warning("The limit n_rep_max*n_boot reached, but MR-PROLLIM failed to obtain n_boot repeats.")}
+        if(nrow(out_boot)<n_boot){warning("The limit n_rep_max*n_boot was reached, but MR-PROLLIM failed to obtain n_boot repeats.")}
         vcov_boot<-cov(out_boot,use="na.or.complete")
       }
       
@@ -2059,9 +2433,16 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                                         post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                                         p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,individual=F,vcov_est=T)},error=function(e){return(e)})
       
+      se_u1<-p_u1<-NA
+      if(!"error"%in%class(vcov)){
+        se_u1<-tryCatch({sqrt(vcov_sandw["u1","u1"])},error=function(e){NA})
+        p_u1<-pnorm(-abs(beta_norm["u1"]/se_u1))*2
+        names(p_u1)<-NULL
+      }
+      
       #output
-      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot)
-      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info)
+      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
+      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info,final_Egger_flag=myEgger0)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=fit_k,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,
                                                                                                                                     k_sigma=sigma2_matr,post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                                                                                                                                     mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages,boot_data=out_boot))
@@ -2071,6 +2452,13 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
     }
     
     if(control_p3$nome==T){
+      if(!is.null(data_p3_opt)){
+        m_hat<-data_p3_opt$m_hat;sigma1_matr<-data_p3_opt$m_sigma
+        k_hat<-data_p3_opt$k_hat;sigma2_matr<-data_p3_opt$k_sigma
+        mk_sigma_list<-data_p3_opt$mk_sigma_list
+        wald_p<-data_p3_opt$wald_p;u_input<-data_p3_opt$u_input
+      }
+      
       if(control_p3$inspect_data_p3_opt){
         return(list(m_hat=m_hat,m_sigma=sigma1_matr,
                     k_hat=k_hat,k_sigma=sigma2_matr,
@@ -2080,7 +2468,18 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
       
       myEgger0<-control_p3$Egger
       signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,myEgger0)
-      Egger_info<-"NULL"
+      if(identical(myEgger0,"auto")){
+        Egger_info<-"NULL"
+      }else{
+        if(myEgger0){Egger_info<-"Egger"}else{
+          Egger_info<-"intercept"
+        }
+      }
+      if(control_p3$auto_s1){
+        beta_start[5]<-floor(log(var(m_hat[,1])))
+        control_gs$lower[5]<-beta_start[5]-control_gs$auto_s1_k
+        control_gs$upper[5]<-beta_start[5]+control_gs$auto_s1_k
+      }
       
       #check initial value
       if(dt){cat("Check initial value.\r\n")}
@@ -2113,60 +2512,231 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
         }
       }
       
+      est_proc_cont_p3_f0<-function(...){
+        out<-MRprollim:::est_proc_cont_p3_f(...)
+        if(is.na(out)){return(Inf)}
+        out
+      }
       if(mc.cores>1&control_gs$global_search&control_gs$gs_type=="genoud"){
-        if(Sys.info()[1]=="Windows"|PSOCK){
-          mycl<-parallel::makePSOCKcluster(mc.cores)
-          add_obj_list<-list(var=c("m_hat","sigma1_matr","k_hat"),env=environment())
-          parallel::clusterExport(mycl,varlist=add_obj_list$var,envir=add_obj_list$env)
-        }else{
-          mycl<-parallel::makeForkCluster(mc.cores)
-        }
+        eval(parse(text=paste0(".mrp_p3_cl<-parallel::makePSOCKcluster(",mc.cores,")")),envir=.GlobalEnv)
+        add_par_list<-check_genoud_par(...,return_list=T)
+        assign(".mrp_p3_f1",withWarnings,envir=.GlobalEnv)
+        eval(expression(environment(.mrp_p3_f1)<-.GlobalEnv),envir=.GlobalEnv)
+        assign(".mrp_p3_f2",est_proc_cont_p3_f0,envir=.GlobalEnv)
+        eval(expression(environment(.mrp_p3_f2)<-.GlobalEnv),envir=.GlobalEnv)
       }else{
         mycl<-F
       }
       if(dt){cat("Start optimizing.\r\n")}
       auto_c<-1
       fit_gs<-fit_nlminb<-list()
+      beta_start0<-beta_start
+      stopifnot(length(beta_start0)==7)
       while(T){
+        crtb<-crt_beta_loc(beta_start0,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
         if(auto_c!=1){
           if(identical(p1_sp,1)&identical(p2_sp,0)&is.null(r_sp)&identical(model_u2,T)&identical(myEgger0,"auto")){
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,F)
             initial_test1<-suppressWarnings(est_proc_cont_p3_f(beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                                                sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                               p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                               p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,T)
             initial_test2<-suppressWarnings(est_proc_cont_p3_f(beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                                                sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                               p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                               p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             if(initial_test1%in%c(NA,NaN,Inf,-Inf)|initial_test2%in%c(NA,NaN,Inf,-Inf)){initial_test<-NA}else{initial_test<-0}
           }else{
             initial_test<-suppressWarnings(est_proc_cont_p3_f(beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                                               sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
           }
         }
         if(initial_test%in%c(NA,NaN,Inf,-Inf)){
           fit$code<-"inappropriate initial values for the next model"
           warning("Inappropriate initial values for the next model.")
-          return(list(fit=fit,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+          return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                       mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
         }else{
           if(identical(p1_sp,1)&identical(p2_sp,0)&is.null(r_sp)&identical(model_u2,T)&identical(myEgger0,"auto")){
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,F)
             fit_int<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                                   sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                  control=control_p3$nlminb_control))},
+                                                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                  control=nlminb_c_list))},
                               error=function(e){return(e)})
+            fit_nlminb<-c(fit_nlminb,list(fit_int))
+            if(control_gs$global_search&control_gs$global_search_EI){
+              if(control_gs$gs_type=="genoud"){
+                if(mc.cores>1){
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size.EI=genoud_control$pop.size.EI,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,sigma1_matr=sigma1_matr,k_hat=k_hat,
+                                    signk=signk,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size.EI,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sigma1_matr=.mrp_p3_par$sigma1_matr,k_matrix=.mrp_p3_par$k_hat,
+                    sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1_int<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1_int<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size.EI,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                    sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
+                }
+              }else{
+                fit1_int<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3_f0,par=beta_start,
+                                                 lower=control_gs$lower[beta_loc],
+                                                 upper=control_gs$upper[beta_loc],
+                                                 control=update_GenSA(control_gs$GenSA_control,1),
+                                                 m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                                                 sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
+                )},error=function(e){return(e)})
+              }
+              
+              fit_gs<-c(fit_gs,list(fit1_int))
+              
+              if((!"error"%in%class(fit1_int))&(!"error"%in%class(fit_int))){
+                if("mywarning"%in%class(fit1_int)){
+                  warning_out<-fit1_int$warning[!stringr::str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  if(length(warning_out)>0){
+                    message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
+                  }
+                  fit1_int<-fit1_int$value
+                }
+                if(fit1_int$value<fit_int$minimum){
+                  fit_int<-format_fit1(fit1_int)
+                }
+              }else{
+                message("Errors detected in fit_nlminb or fit_gs.")
+              }
+            }
+            
             signk<-crt_signk(k_hat,p1_sp,p2_sp,model_u2,T)
             fit_egger<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                                     sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                    control=control_p3$nlminb_control))},
+                                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                    control=nlminb_c_list))},
                                 error=function(e){return(e)})
+            fit_nlminb<-c(fit_nlminb,list(fit_egger))
+            if(control_gs$global_search&control_gs$global_search_EI){
+              if(control_gs$gs_type=="genoud"){
+                if(mc.cores>1){
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size.EI=genoud_control$pop.size.EI,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,sigma1_matr=sigma1_matr,k_hat=k_hat,
+                                    signk=signk,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size.EI,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sigma1_matr=.mrp_p3_par$sigma1_matr,k_matrix=.mrp_p3_par$k_hat,
+                    sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1_egger<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1_egger<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size.EI,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                    sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
+                }
+              }else{
+                fit1_egger<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3_f0,par=beta_start,
+                                                   lower=control_gs$lower[beta_loc],
+                                                   upper=control_gs$upper[beta_loc],
+                                                   control=update_GenSA(control_gs$GenSA_control,1),
+                                                   m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                                                   sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                                   p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
+                )},error=function(e){return(e)})
+              }
+              
+              fit_gs<-c(fit_gs,list(fit1_egger))
+              
+              if((!"error"%in%class(fit1_egger))&(!"error"%in%class(fit_egger))){
+                if("mywarning"%in%class(fit1_egger)){
+                  warning_out<-fit1_egger$warning[!stringr::str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  if(length(warning_out)>0){
+                    message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
+                  }
+                  fit1_egger<-fit1_egger$value
+                }
+                if(fit1_egger$value<fit_egger$minimum){
+                  fit_egger<-format_fit1(fit1_egger)
+                }
+              }else{
+                message("Errors detected in fit_nlminb or fit_gs.")
+              }
+            }
+            
             if("error"%in%class(fit_int)|"error"%in%class(fit_egger)){
               warning("Errors detected in fit_int or fit_egger. Data_input and nlminb_output are returned.")
-              return(list(fit_int=fit_int,fit_egger=fit_egger,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+              return(list(fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                           mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
             }
             if(dt){message("Log likelihood for intercept model: ",-fit_int$minimum)}
@@ -2182,50 +2752,85 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           }else{
             fit<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                               sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                              control=control_p3$nlminb_control))},
+                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                              control=nlminb_c_list))},
                           error=function(e){return(e)})
-            
-            if(control_gs$global_search&!identical(p1_sp,1)){
-              est_proc_cont_p3_f0<-function(...){
-                out<-est_proc_cont_p3_f(...)
-                if(is.na(out)){return(Inf)}
-                out
+            fit_nlminb<-c(fit_nlminb,list(fit))
+            if(control_gs$global_search){
+              if(identical(p1_sp,1)&identical(p2_sp,0)){
+                pop.size<-genoud_control$pop.size.EI
+                maxit.exc<-1
+              }else{
+                pop.size<-genoud_control$pop.size
+                maxit.exc<-2
               }
+              
               if(control_gs$gs_type=="genoud"){
                 if(mc.cores>1){
-                  add_obj_list<-list(var=c("signk","p1_sp","p2_sp","r_sp","model_u2"),env=environment())
-                  parallel::clusterExport(mycl,varlist=add_obj_list$var,envir=add_obj_list$env)
+                  .mrp_p3_par<-list(beta_start=beta_start,beta_loc=beta_loc,
+                                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=pop.size,
+                                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),
+                                    solution.tolerance=genoud_control$solution.tolerance,
+                                    gradient.check=genoud_control$gradient.check,
+                                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                                    BFGSburnin=genoud_control$BFGSburnin,
+                                    balance=genoud_control$balance,
+                                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                                    m_hat=m_hat,sigma1_matr=sigma1_matr,k_hat=k_hat,
+                                    signk=signk,
+                                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+                  assign(".mrp_p3_par",.mrp_p3_par,envir=.GlobalEnv)
+                  eval(expression(parallel::clusterExport(.mrp_p3_cl,varlist=".mrp_p3_par",envir=.GlobalEnv)),envir=.GlobalEnv)
+                  exp0<-join_par(expression(rgenoud::genoud(
+                    fn=.mrp_p3_f2,nvars=length(.mrp_p3_par$beta_start),
+                    starting.values=.mrp_p3_par$beta_start,
+                    print.level=.mrp_p3_par$print.level,max.generations=.mrp_p3_par$max.generations,pop.size=.mrp_p3_par$pop.size,
+                    Domains=.mrp_p3_par$Domains,cluster=.mrp_p3_cl,
+                    solution.tolerance=.mrp_p3_par$solution.tolerance,
+                    gradient.check=.mrp_p3_par$gradient.check,
+                    control=.mrp_p3_par$control,
+                    BFGSburnin=.mrp_p3_par$BFGSburnin,
+                    balance=.mrp_p3_par$balance,
+                    wait.generations=.mrp_p3_par$wait.generations,hard.generation.limit=.mrp_p3_par$hard.generation.limit,
+                    m_matrix=.mrp_p3_par$m_hat,sigma1_matr=.mrp_p3_par$sigma1_matr,k_matrix=.mrp_p3_par$k_hat,
+                    sign_k1=.mrp_p3_par$signk$sign_k1,sign_k2=.mrp_p3_par$signk$sign_k2,
+                    p1_sp=.mrp_p3_par$p1_sp,p2_sp=.mrp_p3_par$p2_sp,r_sp=.mrp_p3_par$r_sp,model_u2=.mrp_p3_par$model_u2,beta_loc=.mrp_p3_par$beta_loc
+                  )),as.expression(add_par_list))
+                  eval(parse(text=paste0(".mrp_p3_fit<-tryCatch({.mrp_p3_f1(",exp0,")},error=function(e){e})")),envir =.GlobalEnv)
+                  fit1<-get(".mrp_p3_fit",envir=.GlobalEnv)
+                }else{
+                  fit1<-tryCatch({withWarnings(rgenoud::genoud(
+                    fn=est_proc_cont_p3_f0,nvars=length(beta_start),
+                    starting.values=beta_start,
+                    print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=pop.size,
+                    Domains=cbind(control_gs$lower[beta_loc],control_gs$upper[beta_loc]),cluster=mycl,
+                    solution.tolerance=genoud_control$solution.tolerance,
+                    gradient.check=genoud_control$gradient.check,
+                    control=update_opt_c(genoud_control$optim_control,beta_loc),
+                    BFGSburnin=genoud_control$BFGSburnin,
+                    balance=genoud_control$balance,
+                    wait.generations=genoud_control$wait.generations,hard.generation.limit=genoud_control$hard.generation.limit,
+                    m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                    sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                    p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,...
+                  ))},error=function(e){return(e)})
                 }
-                fit1<-tryCatch({withWarnings(rgenoud::genoud(
-                  fn=est_proc_cont_p3_f0,nvars=length(beta_start),
-                  starting.values=beta_start,
-                  print.level=genoud_control$print.level,max.generations=genoud_control$max.generations,pop.size=genoud_control$pop.size,
-                  Domains=cbind(control_gs$lower,control_gs$upper),cluster=mycl,
-                  solution.tolerance=genoud_control$solution.tolerance,
-                  gradient.check=genoud_control$gradient.check,
-                  control=genoud_control$optim_control,
-                  m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
-                  sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                  p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2
-                ))},error=function(e){return(e)})
               }else{
                 fit1<-tryCatch({GenSA::GenSA(fn=est_proc_cont_p3_f0,par=beta_start,
-                                             lower=control_gs$lower,
-                                             upper=control_gs$upper,
-                                             control=control_gs$GenSA_control,
+                                             lower=control_gs$lower[beta_loc],
+                                             upper=control_gs$upper[beta_loc],
+                                             control=update_GenSA(control_gs$GenSA_control,maxit.exc),
                                              m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                              sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2
+                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc
                 )},error=function(e){return(e)})
               }
               
               fit_gs<-c(fit_gs,list(fit1))
-              fit_nlminb<-c(fit_nlminb,list(fit))
               
               if((!"error"%in%class(fit1))&(!"error"%in%class(fit))){
                 if("mywarning"%in%class(fit1)){
-                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"Out of Boundary individual")]
+                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2245,11 +2850,13 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                       mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
         }
+        fit$estimate0<-fit$estimate
+        fit$estimate<-ext_estimate(fit$estimate,beta_start0,beta_loc)
         
         if(control_p3$model_select==F){break}
-        diag_out<-diagnose_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper,dt=dt)
+        diag_out<-diagnose_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper,myEgger=myEgger0,dt=dt)
         if(identical(diag_out,"pass")){
-          if((median(sqrt(sigma1_matr[,1]))*0.01>sqrt(exp(fit$estimate[5])))&!identical(p1_sp,1)){
+          if((median(sqrt(sigma1_matr[,1]))*s1_cut_k>sqrt(exp(fit$estimate[5])))&!identical(p1_sp,1)){
             message("Model selection: to Egger or intercept model. (s1 may be too small: ",sqrt(exp(fit$estimate[5])),")")
             diag_out<-list(p1_sp=1,p2_sp=0,r_sp=NULL,model_u2=T,myEgger=myEgger0)
           }else{
@@ -2267,33 +2874,62 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
         auto_c<-auto_c+1
       }
       if(mc.cores>1&control_gs$global_search&control_gs$gs_type=="genoud"){
-        parallel::stopCluster(mycl)
+        eval(expression({parallel::stopCluster(.mrp_p3_cl);rm(.mrp_p3_cl,.mrp_p3_f1,.mrp_p3_f2,.mrp_p3_par,.mrp_p3_fit)}),envir=.GlobalEnv)
+        gc()
       }
       
       #use nlminb to check the gradients
-      if(tryCatch({fit$message$type=="GenSA or genoud"},error=function(e){F})){
+      if(tryCatch({identical(fit$message$type,"GenSA or genoud")},error=function(e){F})){
         if(dt){cat("Genoud or GenSA finds estimates with a higher likelihood.\r\n")}
-        fit0<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=fit$estimate,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+        crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
+        fit0<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                            sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                           p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                           control=control_p3$nlminb_control))},
+                                           p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                           control=nlminb_c_list))},
                        error=function(e){return(e)})
+        fit_nlminb<-c(fit_nlminb,list(fit0))
         if("error"%in%class(fit0)){
           fit$code<-"nlminb outputs errors with the solutions given by genoud or GenSA"
         }else{
           fit<-fit0
+          fit$estimate0<-fit$estimate
+          fit$estimate<-ext_estimate(fit$estimate,beta_start0,beta_loc)
         }
       }
       
       #in case if model_select=F
       fit$code<-check_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
-      if(!fit$code%in%c(0)){
-        warning("nlminb outputs abnormal convergence code for the current solutions")
-        if(!fit$code%in%c(1)){
-          warning("Already extracted data are returned.")
-          return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
-                      mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
+      if(fit$code%in%c(0,1)){
+        crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+        beta_start<-crtb[[1]]
+        beta_loc<-crtb[[2]]
+        fit0<-tryCatch({suppressWarnings(nlm(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                                             sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                             p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                             hessian=nlm_c_list$hessian,
+                                             fscale=nlm_c_list$fscale,print.level=nlm_c_list$print.level,ndigit=nlm_c_list$ndigit,
+                                             gradtol=nlm_c_list$gradtol,stepmax=nlm_c_list$stepmax,steptol=nlm_c_list$steptol[1],
+                                             iterlim=nlm_c_list$iterlim,check.analyticals=nlm_c_list$check.analyticals))},
+                       error=function(e){return(e)})
+        fit_nlminb<-c(fit_nlminb,list(fit0))
+        if("error"%in%class(fit0)){
+          fit$code<-"nlm outputs errors for the current solution"
+        }else{
+          if(anyNA(fit0$gradient)){fit0$code<-"NA_gradient"}
+          fit0$message<-paste0("nlm code: ",fit0$code)
+          if(fit0$code%in%c(1,2,3)){fit0$code<-0}else{fit0$code<-1}
+          fit0$estimate0<-fit0$estimate
+          fit0$estimate<-ext_estimate(fit0$estimate,beta_start0,beta_loc)
+          fit0$code<-check_fit(fit0,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
+          fit<-fit0
         }
+      }
+      if(!fit$code%in%c(0)){
+        message("Abnormal optimization code; already extracted data are returned.")
+        return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
+                    mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
       }
       
       #bootstrap
@@ -2309,18 +2945,23 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           n_rep<-n_rep[[1]]
           my_proc<-0
           out_boot<-NULL
+          
+          crtb<-crt_beta_loc(fit$estimate,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2)
+          beta_start<-crtb[[1]]
+          beta_loc<-crtb[[2]]
           for(i in 1:n_rep){
             id<-sample(1:n1,n1,replace=T)
             signk<-crt_signk(k_hat[id,],p1_sp,p2_sp,model_u2,myEgger0)
-            initial_test<-suppressWarnings(est_proc_cont_p3_f(fit$estimate,m_matrix=m_hat[id,],sigma1_matr=sigma1_matr[id,],k_matrix=k_hat[id,],
+            initial_test<-suppressWarnings(est_proc_cont_p3_f(beta_start,m_matrix=m_hat[id,],sigma1_matr=sigma1_matr[id,],k_matrix=k_hat[id,],
                                                               sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2))
+                                                              p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc))
             if(initial_test%in%c(NA,NaN,Inf,-Inf)){fit1<-list(estimate=NA,code=NA)}else{
-              fit1<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=fit$estimate,m_matrix=m_hat[id,],sigma1_matr=sigma1_matr[id,],k_matrix=k_hat[id,],
+              fit1<-tryCatch({nlminb2nlm(nlminb2(f=est_proc_cont_p3_f,p=beta_start,m_matrix=m_hat[id,],sigma1_matr=sigma1_matr[id,],k_matrix=k_hat[id,],
                                                  sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                                 control=control_p3$nlminb_control))},
+                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,beta_loc=beta_loc,
+                                                 control=nlminb_c_list))},
                              error=function(e){return(list(estimate=NA,code=NA))})
+              fit1$estimate<-ext_estimate(fit1$estimate,beta_start0,beta_loc)
               fit1$code<-check_fit(fit1,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper)
             }
             if(fit1$code%in%c(0)){
@@ -2340,14 +2981,13 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
           mylist[[j]]<-list(even_allo(n_rep_max*n_boot,mc.cores)[j],j,even_allo(n_boot,mc.cores)[j])
         }
         add_obj_list<-list(var=c("n1","k_hat","p1_sp","p2_sp","model_u2","myEgger0","r_sp",
-                                 "m_hat","sigma1_matr","control_p3","fit"),
+                                 "m_hat","sigma1_matr","control_p3","fit","beta_start0"),
                            env=environment())
         exec_base_func<-function(x){
-          Sys.sleep(x/10)
-          library(MRprollim,quietly=T)
+          suppressWarnings(library(MRprollim,quietly=T))
         }
         myfit<-my_parallel(X=mylist,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                           print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T)
+                           print_message=parallel_trace,add_obj_list=add_obj_list,exec_base_func=exec_base_func,export_parent_func=T,seed=round(runif(1,1,.Machine$integer.max)))
         mybind_list_parallel<-function(list){
           out<-NULL
           for(i in 1:length(list)){
@@ -2369,11 +3009,18 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,parallel_trace=F,mc.cores=
                                       m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
                                       sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
                                       p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
-                                      individual=T,vcov_est=T)},error=function(e){return(e)})
+                                      individual=T,vcov_est=T,save_sandw=T)},error=function(e){return(e)})
+      
+      se_u1<-p_u1<-NA
+      if(!"error"%in%class(vcov)){
+        se_u1<-tryCatch({sqrt(vcov_sandw["u1","u1"])},error=function(e){NA})
+        p_u1<-pnorm(-abs(beta_norm["u1"]/se_u1))*2
+        names(p_u1)<-NULL
+      }
       
       #output
-      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot)
-      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info)
+      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
+      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info,final_Egger_flag=myEgger0)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=NULL,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                                                                                                                                    mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,boot_data=out_boot))
       class(out)<-"MR-PROLLIM output"

@@ -1,6 +1,11 @@
 est_proc_cont_p3.1_f<-function(beta,m_matrix,post_sample_k1,post_sample_k2,
                                f1_matr,f2_matr,sigma_prime_list,sign_k1,sign_k2,
-                               p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=F,individual=F,cpp=T,vcov_est=F,indiv_p=F){
+                               p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=F,individual=F,cpp=T,vcov_est=F,indiv_p=F,beta_loc=NULL){
+  if(!is.null(beta_loc)){
+    beta0<-rep(NA,7)
+    beta0[beta_loc]<-beta
+    beta<-beta0
+  }
   
   if(vcov_est){
     b1<-beta[1]
@@ -32,21 +37,21 @@ est_proc_cont_p3.1_f<-function(beta,m_matrix,post_sample_k1,post_sample_k2,
       for(i in 1:nrow(m_matrix)){
         #double pleiotropy
         if(identical(p2_sp,0))(pd[i,]<-0)else{
-          pd[i,]<-(mvdnorm3.1(m_matrix[i,],
+          pd[i,]<-(mvdnorm3(m_matrix[i,],
                               cbind((b1+u1)*post_sample_k1[i,]+u2*sign_k1[i]+f1_matr[i,],(b1+u1)*post_sample_k2[i,]+2*u2*sign_k2[i]+f2_matr[i,]),
                               s_h+sigma_prime_list[[i]]))
         }
         
         #uncorrelated
         if(identical(p2_sp,1)){pun[i,]<-0}else{
-          pun[i,]<-(mvdnorm3.1(m_matrix[i,],
+          pun[i,]<-(mvdnorm3(m_matrix[i,],
                                cbind((b1)*post_sample_k1[i,]+u2*sign_k1[i]+f1_matr[i,],(b1)*post_sample_k2[i,]+2*u2*sign_k2[i]+f2_matr[i,]),
                                s_h+sigma_prime_list[[i]]))
         }
         
         #no pleiotropy
         if(identical(p1_sp,1)){pno[i,]<-0}else{
-          pno[i,]<-(mvdnorm3.1(m_matrix[i,],
+          pno[i,]<-(mvdnorm3(m_matrix[i,],
                                cbind((b1)*post_sample_k1[i,]+f1_matr[i,],(b1)*post_sample_k2[i,]+f2_matr[i,]),
                                sigma_prime_list[[i]]))
         }
@@ -66,21 +71,21 @@ est_proc_cont_p3.1_f<-function(beta,m_matrix,post_sample_k1,post_sample_k2,
     for(i in 1:nrow(m_matrix)){
       #double pleiotropy
       if(identical(p2_sp,0))(pd[i]<-0)else{
-        pd[i]<-mean(mvdnorm3.1(m_matrix[i,],
+        pd[i]<-mean(mvdnorm3(m_matrix[i,],
                                cbind((b1+u1)*post_sample_k1[i,]+u2*sign_k1[i]+f1_matr[i,],(b1+u1)*post_sample_k2[i,]+2*u2*sign_k2[i]+f2_matr[i,]),
                                s_h+sigma_prime_list[[i]]))
       }
       
       #uncorrelated
       if(identical(p2_sp,1)){pun[i]<-0}else{
-        pun[i]<-mean(mvdnorm3.1(m_matrix[i,],
+        pun[i]<-mean(mvdnorm3(m_matrix[i,],
                                 cbind((b1)*post_sample_k1[i,]+u2*sign_k1[i]+f1_matr[i,],(b1)*post_sample_k2[i,]+2*u2*sign_k2[i]+f2_matr[i,]),
                                 s_h+sigma_prime_list[[i]]))
       }
       
       #no pleiotropy
       if(identical(p1_sp,1)){pno[i]<-0}else{
-        pno[i]<-mean(mvdnorm3.1(m_matrix[i,],
+        pno[i]<-mean(mvdnorm3(m_matrix[i,],
                                 cbind((b1)*post_sample_k1[i,]+f1_matr[i,],(b1)*post_sample_k2[i,]+f2_matr[i,]),
                                 sigma_prime_list[[i]]))
       }

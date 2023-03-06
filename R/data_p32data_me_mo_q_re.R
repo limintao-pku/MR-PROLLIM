@@ -1,4 +1,4 @@
-data_p32data_me_mo_q_re_dl<-function(data_p3,length_all,p_cut=5e-8,adj_m="none",trace=F){
+data_p32data_me_mo_q_re<-function(data_p3,length_all,p_cut=5e-8,adj_m="none",trace=F){
   se<-eff<-eff_indiv<-NULL
   loc<-which(p.adjust(data_p3$wald_p,adj_m)<p_cut)
   cor_correct<-T

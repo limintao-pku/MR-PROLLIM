@@ -1,8 +1,10 @@
 match.list<-function(list1,list2,vector=F){
   if(is.null(list1)){return(list2)}
+  if(length(list1)==0){return(list2)}
   if(!vector){
     if(!is.list(list1)){stop("control_list should be a list.")}
     if(is.null(names(list1))){stop("control_list should be a named list.")}
+    if(any(duplicated(names(list1)))){stop("control_list has duplicated names.")}
   }
   na2<-names(list2)
   na1<-names(list1)
@@ -15,4 +17,3 @@ match.list<-function(list1,list2,vector=F){
   }
   return(list2)
 }
-

@@ -1,11 +1,12 @@
 get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("log","logit"),
                       p_cut=c(1e-3,1e-5,5e-8),return_dt=T,
-                      cd=T,cd_g_code=T,max_unique=10,
+                      cd=T,max_unique=10,cd_g_code=T,
                       trinary_only=T,n_min_limit=100,
                       control_limit_c=NULL,scale=T,
                       mc.cores=1,PSOCK=F,parallel_trace=F,dt=T,
-                      nlm=F,nlm_control=list(gradtol=1e-8,steptol=1e-6,stepmax=5,iterlim=100),
-                      nlminb_control=list(rel.tol=1e-12,sing.tol=1e-12,step.min=0.8,eval.max=300,iter.max=300)){
+                      nlm=T,nlm_control=list(gradtol=1e-8,stepmax=5,steptol=1e-8,iterlim=300),
+                      nlminb_control=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
+                                          nlm_control=list(gradtol=1e-10,stepmax=2,steptol=1e-10))){
   #this function is not designed for fast de novo GWAS
   
   ncol2<-function(x){
@@ -31,7 +32,7 @@ get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("lo
     if(dt){cat("Appropriate input data: true.\r\n")}
   }
   check_start(g,start,"start")
-  control_limit_c_org<-list(limit_c=T,dum_loc="auto",quantile=c(0.025,0.975),outlier=F)
+  control_limit_c_org<-list(limit_c=T,dum_loc="auto",quantile=c(0,1),outlier=T)
   control_limit_c<-match.list(control_limit_c,control_limit_c_org)
   check_dum_loc(c,control_limit_c$dum_loc,"control_limit_c$dum_loc")
   update_dum_loc<-function(dum_loc,loc,c_inherit){
@@ -116,6 +117,9 @@ get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("lo
   }
   gc()
   
+  nlm_c_list_org<-list(hessian=F,fscale=1,print.level=0,ndigit=12,
+                       gradtol=1e-8,stepmax=5,steptol=1e-8,iterlim=300,check.analyticals=F)
+  nlm_c_list<-match.list(nlm_control,nlm_c_list_org)
   if(dt){cat("Start SNP-Exposure effect calculation.\r\n")}
   my_task<-function(my_loc){
     t0<-Sys.time()
@@ -165,11 +169,19 @@ get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("lo
               if(!nlm){
                 fit<-mynlminb(f=f_log_linear,p=start_m,x=x_m,g=g_dum,c=c_m,name=colnames(g)[i],control=nlminb_control)
               }else{
-                fit<-suppressWarnings(nlm(f=f_log_linear,p=start_m,x=x_m,g=g_dum,c=c_m,
-                                          gradtol=nlm_control$gradtol,steptol=nlm_control$steptol,stepmax=nlm_control$stepmax,iterlim=nlm_control$iterlim))
-                if(anyNA(fit$gradient)|fit$code%in%c(3,4,5)){
-                  warning(paste0(colnames(g)[i]," failed in the effect calculation (nlm code: ",fit$code,")"))
-                  fit$estimate<-rep(NA,length(fit$estimate))
+                fit<-tryCatch({suppressWarnings(nlm(f=f_log_linear,p=start_m,x=x_m,g=g_dum,c=c_m,
+                                                    hessian=nlm_c_list$hessian,
+                                                    fscale=nlm_c_list$fscale,print.level=nlm_c_list$print.level,ndigit=nlm_c_list$ndigit,
+                                                    gradtol=nlm_c_list$gradtol,stepmax=nlm_c_list$stepmax,steptol=nlm_c_list$steptol[1],
+                                                    iterlim=nlm_c_list$iterlim,check.analyticals=nlm_c_list$check.analyticals))},error=function(e){e})
+                if("error"%in%class(fit)){
+                  warning(paste0(colnames(g)[i]," failed in the effect calculation (nlm gives an error)"))
+                  fit<-list(estimate=rep(NA,length(start_m)))
+                }else{
+                  if(anyNA(fit$gradient)|fit$code%in%c(4,5)){
+                    warning(paste0(colnames(g)[i]," failed in the effect calculation (nlm code: ",fit$code,")"))
+                    fit$estimate<-rep(NA,length(fit$estimate))
+                  }
                 }
               }
               vcov<-sandwich_log_linear(1:ncol(g_dum),fit$estimate,x=x_m,g=g_dum,c=c_m,name=colnames(g)[i])
@@ -213,11 +225,10 @@ get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("lo
   mynum<-cut_num(1:ncol(g),mc.cores)
   mycheck<-"pass"
   exec_base_func<-function(x){
-    Sys.sleep(x/10)
-    library(MRprollim,quietly=T)
+    suppressWarnings(library(MRprollim,quietly=T))
   }
   myfit<-withCallingHandlers({my_parallel(X=mynum,FUN=my_task,mc.cores=mc.cores,PSOCK=PSOCK,dt=dt,
-                                          print_message=parallel_trace,exec_base_func=exec_base_func,export_parent=T)},warning=function(w){mycheck<<-w})
+                                          print_message=parallel_trace,exec_base_func=exec_base_func,export_parent=T,seed=NULL)},warning=function(w){mycheck<<-w})
   if((!identical(mycheck,"pass"))&mc.cores!=1){
     warning("An error occurred. Output of my_parallel with errors is returned.")
     message(mycheck)
@@ -237,10 +248,10 @@ get_sig_snp<-function(x,g,c,c_inherit=T,start=NULL,type=c("c","b"),bi_type=c("lo
   }
   myfit<-mybind_list_parallel(myfit)
   p<-myfit[[1]]
-  sig_loc<-list()
+  sig_snp<-list()
   for(i in 1:length(p_cut)){
-    sig_loc[[i]]<-as.numeric(which(p<p_cut[i]))
+    sig_snp[[i]]<-names(p)[which(p<p_cut[i])]
   }
   
-  return(list(sig_snp_loc=sig_loc,p=p,eff=myfit[[2]],vcov=myfit[[3]],eff_all=myfit[[4]]))
+  return(list(sig_snp=sig_snp,p=p,eff=myfit[[2]],vcov=myfit[[3]],eff_all=myfit[[4]]))
 }

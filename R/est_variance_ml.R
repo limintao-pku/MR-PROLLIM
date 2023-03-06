@@ -1,4 +1,5 @@
-est_variance_ml<-function(f,beta_opt,...,n,loc,beta_name,name=NULL,sandwich=T,hessian=F,d1=.Machine$double.eps^(1/4),d2=.Machine$double.eps^(1/4),d3=.Machine$double.eps^(1/3)){
+est_variance_ml<-function(f,beta_opt,...,n,loc,beta_name,name=NULL,sandwich=T,hessian=F,
+                          d1=.Machine$double.eps^(1/4),d2=.Machine$double.eps^(1/4),d3=.Machine$double.eps^(1/3),save_sandw=F){
   #f with ... is an individual function
   n1<-length(beta_opt)
   mybread<-matrix(NA,ncol=n1,nrow=n1)
@@ -67,6 +68,10 @@ est_variance_ml<-function(f,beta_opt,...,n,loc,beta_name,name=NULL,sandwich=T,he
   
   if(hessian&!sandwich){
     out_cov<-invh
+  }
+  
+  if(save_sandw){
+    assign("vcov_sandw",sandw,envir=parent.frame())
   }
   
   return(out_cov[loc,loc])
