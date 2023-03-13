@@ -9,7 +9,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
                       control_p12=NULL,data_p12=NULL,
                       control_p3=NULL,data_p3_k=NULL,data_p3=NULL,data_p3_opt=NULL,
                       control_est_k_prior=NULL,control_est_k_post=NULL,control_global_search=NULL,
-                      control_me_mo_q_re=NULL,data_me_mo_q_re=NULL,...){ 
+                      control_me_mo_q_re=NULL,data_me_mo_q_re=NULL,...){
   stopifnot(is.matrix(g))
   est_type<-match.arg(est_type)
   c_cat<-F
@@ -696,7 +696,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
                 heterogeneity_test=h_test,
                 model="dll")
     class(myout)<-"MR-PROLLIM output"
-    if(dt){cat("MR-PROLLIM classic methods (Procedure me_mo_q_re) finished.\r\n")}
+    if(dt){cat("MR-PROLLIM classical methods (Procedure me_mo_q_re) finished.\r\n")}
     return(myout)
   }
   

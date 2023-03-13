@@ -461,7 +461,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
                 data_me_mo_q_re=hp1,
                 heterogeneity_test=h_test)
     class(myout)<-"MR-PROLLIM output"
-    if(dt){cat("MR-PROLLIM classic methods (Procedure me_mo_q_re) finished.\r\n")}
+    if(dt){cat("MR-PROLLIM classical methods (Procedure me_mo_q_re) finished.\r\n")}
     return(myout)
   }
   
