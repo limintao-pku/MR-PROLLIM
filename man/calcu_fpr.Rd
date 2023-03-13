@@ -24,8 +24,8 @@ calcu_fpr(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","b"),
                       nlminb_control=list(scale=1,eval.max=300,iter.max=300),
                       nlm_control=list(gradtol=1e-10,stepmax=2,steptol=1e-10)
                     ),
-                    rm_sig_p_cut=0.05,rm_sig_adj_m="fdr",cover=0.9999,
-                    n_boot=10000,get_sig_snp_data=NULL)
+                    rm_sig_p_cut=0.05,rm_sig_adj_m="fdr",cor_method="pearson",
+                    cover=0.9999,n_boot=10000,get_sig_snp_data=NULL)
 }
 
 \arguments{
@@ -118,6 +118,9 @@ they will be removed.
 }
 \item{rm_sig_adj_m}{
 Adjustment method that will be passed to \code{\link[stats]{p.adjust}}.
+}
+\item{cor_method}{
+Method that will be used to calculate the correlation coefficient. Only 'pearson' and 'spearman' are acceptable.
 }
 \item{cover}{
 The coverage of the sampling region for estimating the conditional probability.

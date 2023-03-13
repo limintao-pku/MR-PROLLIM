@@ -5,12 +5,14 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
                     nlm=T,nlm_control=list(gradtol=1e-8,steptol=1e-8,stepmax=5,iterlim=100),
                     nlminb_control=list(nlminb_control=list(scale=1,eval.max=300,iter.max=300),
                                         nlm_control=list(gradtol=1e-10,stepmax=2,steptol=1e-10)),
-                    rm_sig_p_cut=0.05,rm_sig_adj_m="fdr",cover=0.9999,n_boot=10000,get_sig_snp_data=NULL){
+                    rm_sig_p_cut=0.05,rm_sig_adj_m="fdr",cor_method="pearson",cover=0.9999,n_boot=10000,
+                    get_sig_snp_data=NULL){
   if(!is.data.frame(summary_data)){stop("summary_data should be a data.frame.")}
   if(any(!c("snp","eff","se")%in%colnames(summary_data))){stop("summary_data should contain columns 'snp', 'eff', and 'se'.")}
   if(!identical(summary_data$snp,colnames(g))){stop("summary_data$snp should be identical to colnames(g).")}
   if(any(stringr::str_detect(colnames(g),"_recoded"))){stop("colnames(g) should not contain '_recoded'.")}
   if(any(duplicated(summary_data$snp))){stop("Duplicated SNP names detected.")}
+  stopifnot(cor_method%in%c("pearson","spearman"))
   summary_data$p<-pnorm(-abs(summary_data$eff/summary_data$se))*2
   
   #function
@@ -156,7 +158,7 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
   summary_data<-modify_sum_data(summary_data)
   v1<-1
   
-  mycor<-cor(cbind(summary_data$eff,unlist(lapply(mydata2$eff,FUN=function(x){x[1]})),unlist(lapply(mydata2$eff,FUN=function(x){x[2]}))),use="na.or.complete")
+  mycor<-cor(cbind(summary_data$eff,unlist(lapply(mydata2$eff,FUN=function(x){x[1]})),unlist(lapply(mydata2$eff,FUN=function(x){x[2]}))),use="na.or.complete",method=cor_method)
   
   vcov_f<-matrix(NA,3,3)
   vcov_f[1,1]<-v1
