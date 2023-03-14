@@ -10,6 +10,8 @@ The 1.0.2 version has the following main changes:
     with nlm (the initial results are put into nlm as the starting point).
 3. Version 1.0.2 runs the genoud optimizer in the global environment (the user's workspace) to speed up parallel
     computations, while the previous version does this in the local environment of MR-PROLLIM. The default pop.size
-    for genoud is also increased to a > 1000 value if > 3 logical cores are provided.
+    for genoud is also increased to a > 1000 value if > 3 logical cores are available.
 
 We expect that these changes will not have substantial impacts on the results in our paper.    
+
+R scripts used to derive the results in our paper are also provided.
