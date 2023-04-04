@@ -3,7 +3,7 @@ plot.mrp.p3<-function(est_out,ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NU
                       cluster_type=3,cluster_color=c("black","blue","red"),bg_color="white",
                       control_plot1=list(),control_plot2=list(),expr1=NULL,expr2=NULL,
                       control_lines=list(),control_points=list(),control_abline=list(),
-                      sub_fig_label=c(expression(bold(A)),expression(bold(B))),
+                      sub_fig_label=NULL,
                       sub_fig_line=3,sub_fig_k=0.08,sub_fig_cex=1,
                       control_legend=NULL,
                       interactive=F,obj_name=NULL){
