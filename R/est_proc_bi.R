@@ -2549,8 +2549,13 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
       }
       
       #output
+      if(identical(as.numeric(p1_sp),1)&identical(as.numeric(p2_sp),0)&identical(myEgger0,T)){
+        final_Egger_flag<-T
+      }else{
+        final_Egger_flag<-F
+      }
       out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
-      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,log_appr=control_p3$log_appr,est_type="b",Egger_info=Egger_info,final_Egger_flag=myEgger0)
+      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,log_appr=control_p3$log_appr,est_type="b",Egger_info=Egger_info,final_Egger_flag=final_Egger_flag)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=fit_k,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,
                                                                                                                                     k_sigma=sigma2_list,post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                                                                                                                                     post_sample_p=post_sample_p,mkp_sigma_list=mkp_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages,boot_data=out_boot))
@@ -3133,8 +3138,13 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
       }
       
       #output
+      if(identical(as.numeric(p1_sp),1)&identical(as.numeric(p2_sp),0)&identical(myEgger0,T)){
+        final_Egger_flag<-T
+      }else{
+        final_Egger_flag<-F
+      }
       out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
-      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,est_type="b",Egger_info=Egger_info,final_Egger_flag=myEgger0)
+      par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,est_type="b",Egger_info=Egger_info,final_Egger_flag=final_Egger_flag)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=NULL,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_list,
                                                                                                                                    mkp_sigma_list=mkp_sigma_list,wald_p=wald_p,u_input=u_input,boot_data=out_boot))
       class(out)<-"MR-PROLLIM output"
