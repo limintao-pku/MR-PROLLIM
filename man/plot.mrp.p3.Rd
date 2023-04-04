@@ -8,11 +8,12 @@
 }
 
 \usage{
-plot.mrp.p3(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NULL,
+plot.mrp.p3(est_out,ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NULL,
+            emph_loc=NULL,emph_col="purple",
             cluster_type=3,cluster_color=c("black","blue","red"),bg_color="white",
             control_plot1=list(),control_plot2=list(),expr1=NULL,expr2=NULL,
             control_lines=list(),control_points=list(),control_abline=list(),
-            sub_fig_label=c(expression(bold(A)),expression(bold(B))),
+            sub_fig_label=NULL,
             sub_fig_line=3,sub_fig_k=0.08,sub_fig_cex=1,
             control_legend=NULL,
             interactive=F,obj_name=NULL)
@@ -22,8 +23,8 @@ plot.mrp.p3(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NULL,
 Final random-effects MR-PROLLIM (Procedure 3) output from \code{est_proc_bi} or \code{est_proc_cont}.
 It should be an 'MR-PROLLIM output' object.
 }
-\item{m_ci_cover}{
-A numeric value denoting the coverage of the two-sided confidence intervals for m. If \code{m_ci_cover=NULL},
+\item{ci_cover}{
+A numeric value denoting the coverage of the two-sided confidence intervals. If \code{ci_cover=NULL},
 no confidence interval will be drawn. 
 }
 \item{use_trans}{
@@ -39,6 +40,9 @@ See argument \code{use_trans}.
 A numeric or integer vector with \code{length(reorder)} = the number of SNPs. It will function in this way:
 \code{plot(x=x[reorder],y=y[reorder])}. This argument may be useful if users want to emphasize certain points
 that are covered by other points.
+}
+\item{emph_loc,emph_col}{
+These two arguments can be used if users want to emphasize certain points. \code{emph_loc} accepts a numeric or integer vector which contains indexes of the SNPs. \code{emph_col} controls the color of the emphasized points.
 }
 \item{cluster_type}{
 A numeric value in c(2,3). If \code{cluster_type=2}, SNPs judged to have uncorrelated or correlated horizontal

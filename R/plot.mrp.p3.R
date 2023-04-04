@@ -1,4 +1,5 @@
-plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NULL,
+plot.mrp.p3<-function(est_out,ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NULL,
+                      emph_loc=NULL,emph_col="purple",
                       cluster_type=3,cluster_color=c("black","blue","red"),bg_color="white",
                       control_plot1=list(),control_plot2=list(),expr1=NULL,expr2=NULL,
                       control_lines=list(),control_points=list(),control_abline=list(),
@@ -80,6 +81,21 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
     }
     text(0+t_x_adj,78.75+t_y_adj,labels=title,pos=4,cex=title_cex,offset=0,font=2)
   }
+  my_abline<-function(b0,b1,range,...){
+    corner<-par("usr")
+    l<-max(corner[1],range[1])
+    r<-min(corner[2],range[2])
+    lines(c(l,r),c(l*b1+b0,r*b1+b0),...)
+  }
+  my_abline_ggplot<-function(b0,b1,range,obj_ggplot,...){
+    p<-ggplot2::ggplot_build(obj_ggplot)
+    corner<-p$layout$panel_params[[1]]$x.range
+    l<-max(corner[1],range[1])
+    r<-min(corner[2],range[2])
+    #ggplot2::geom_line(aes(x=a,y=b),data=data.frame(a=c(l,r),b=c(l*b1+b0,r*b1+b0)),...)
+    #ggplot2::annotate("segment",x=l,xend=r,y=l*b1+b0,yend=r*b1+b0,...)
+    ggplot2::geom_segment(x=l,xend=r,y=l*b1+b0,yend=r*b1+b0,...)
+  }
   
   fit<-est_out$maxlik$fit_final
   if(is.null(fit)){stop("est_out should be a final output of random-effects MR-PROLLIM.")}
@@ -87,6 +103,7 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
   par<-est_out$parameter
   
   crt_signk<-function(k_hat,p1_sp,p2_sp,model_u2,Egger){
+    stopifnot(!is.null(Egger))
     stopifnot(!anyNA(k_hat))
     if(identical(Egger,"auto")){Egger<-T}
     j<-p1_sp==1&p2_sp==0&model_u2&Egger
@@ -139,10 +156,37 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
                                          p1_sp=par$p1_sp,p2_sp=par$p2_sp,r_sp=par$r_sp,model_u2=par$model_u2,t_b1=par$t_b1)
     }
     b1_td<-est_out$estimate$beta_norm[1]
-    K1<-log((exp(fit_data$k_hat[,1])-1)*fit_data$k_hat[,3]*b1_td+1)
-    K2<-log((exp(fit_data$k_hat[,2])-1)*fit_data$k_hat[,3]*b1_td+1)
-    m1<-fit_data$m_hat[,1]
-    m2<-fit_data$m_hat[,2]
+    k1<-fit_data$k_hat[,1]
+    k2<-fit_data$k_hat[,2]
+    o1<-(exp(fit_data$k_hat[,1])-1)*fit_data$k_hat[,3]*b1_td+1
+    o2<-(exp(fit_data$k_hat[,2])-1)*fit_data$k_hat[,3]*b1_td+1
+    h1<-fit_data$m_hat[,1]-log(o1)
+    h2<-fit_data$m_hat[,2]-log(o2)
+    
+    if(!is.null(fit_data$post_sample_k1)){
+      vcov1<-lapply(fit_data$mkp_sigma_list,FUN=function(x){x[c(1,3,5),c(1,3,5)]})
+      a1<-exp(fit_data$k_hat[,1])*fit_data$k_hat[,3]*b1_td/o1
+      a2<-(exp(fit_data$k_hat[,1])-1)*b1_td/o1
+      se1<-NA
+      for(i in 1:length(a1)){
+        o<-c(1,-a1[i],-a2[i])
+        se1[i]<-sqrt(t(o)%*%vcov1[[i]]%*%o)
+      }
+      
+      vcov2<-lapply(fit_data$mkp_sigma_list,FUN=function(x){x[c(2,4,5),c(2,4,5)]})
+      a1<-exp(fit_data$k_hat[,2])*fit_data$k_hat[,3]*b1_td/o2
+      a2<-(exp(fit_data$k_hat[,2])-1)*b1_td/o2
+      se2<-NA
+      for(i in 1:length(a1)){
+        o<-c(1,-a1[i],-a2[i])
+        se2[i]<-sqrt(t(o)%*%vcov2[[i]]%*%o)
+      }
+    }else{
+      se1<-sqrt(fit_data$m_sigma[,1])
+      se2<-sqrt(fit_data$m_sigma[,3])
+    }
+    se_h<-cbind(se1,se2)
+    se_k<-matrix(unlist(lapply(fit_data$k_sigma,FUN=function(x){sqrt(c(x[1,1],x[2,2]))})),ncol=2,byrow=T)
   }
   
   if(par$est_type=="c"){
@@ -173,11 +217,38 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
                                            p1_sp=par$p1_sp,p2_sp=par$p2_sp,r_sp=par$r_sp,model_u2=par$model_u2)
     }
     b1<-est_out$estimate$beta_norm[1]
-    K1<-fit_data$k_hat[,1]*b1
-    K2<-fit_data$k_hat[,2]*b1
-    m1<-fit_data$m_hat[,1]
-    m2<-fit_data$m_hat[,2]
+    k1<-fit_data$k_hat[,1]
+    k2<-fit_data$k_hat[,2]
+    o1<-fit_data$k_hat[,1]*b1
+    o2<-fit_data$k_hat[,2]*b1
+    h1<-fit_data$m_hat[,1]-o1
+    h2<-fit_data$m_hat[,2]-o2
+    
+    if(!is.null(fit_data$post_sample_k1)){
+      vcov1<-lapply(fit_data$mk_sigma_list,FUN=function(x){x[c(1,3),c(1,3)]})
+      se1<-NA
+      for(i in 1:length(vcov1)){
+        o<-c(1,-b1)
+        se1[i]<-sqrt(t(o)%*%vcov1[[i]]%*%o)
+      }
+      
+      vcov2<-lapply(fit_data$mk_sigma_list,FUN=function(x){x[c(2,4),c(2,4)]})
+      se2<-NA
+      for(i in 1:length(vcov2)){
+        o<-c(1,-b1)
+        se2[i]<-sqrt(t(o)%*%vcov2[[i]]%*%o)
+      }
+    }else{
+      se1<-sqrt(fit_data$m_sigma[,1])
+      se2<-sqrt(fit_data$m_sigma[,3])
+    }
+    se_h<-cbind(se1,se2)
+    se_k<-sqrt(fit_data$k_sigma[,c(1,3)])
   }
+  
+  par_p2<-est_out$estimate$beta_norm[3]
+  par_u1<-est_out$estimate$beta_norm[4]
+  par_u2<-est_out$estimate$beta_norm[7]
   
   if(cluster_type==2){
     post_prob<-cbind(post_prob[,1],post_prob[,2]+post_prob[,3])
@@ -215,11 +286,15 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
                                        trans(post_prob2[cluster==c_u[i]],trans_lower,use_trans))
     }
   }
+  if(!is.null(emph_loc)){
+    stopifnot(is.numeric(emph_loc))
+    col2[emph_loc]<-col1[emph_loc]<-emph_col
+  }
   
   old<-par(no.readonly=T)
   layout(matrix(c(1,1,2,2,3),ncol=5))
   
-  control_plot1_org<-list(xlab=expression("Estimate of"~italic(K)[1]),ylab=expression("Estimate of"~italic(m)[1]),main="")
+  control_plot1_org<-list(xlab=expression("Estimate of"~italic(k)[1]),ylab=expression("Estimate of"~italic(h)[1]),main="")
   control_plot1<-match.list2(control_plot1,control_plot1_org)
   control_lines_org<-list(lty=1,lwd=1,col="gray")
   control_lines<-match.list2(control_lines,control_lines_org)
@@ -229,51 +304,83 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
   control_abline<-match.list2(control_abline,control_abline_org)
   
   if(is.null(reorder)){
-    rd<-1:length(K1)
+    rd<-1:length(k1)
   }else{
-    stopifnot(length(reorder)==length(K1))
+    stopifnot(length(reorder)==length(k1))
     stopifnot(is.numeric(reorder))
     rd<-reorder
   }
   
-  my_eval("plot(x=K1[rd],y=m1[rd],type=\"n\",",control_plot1,")",environment())
+  my_eval("plot(x=k1[rd],y=h1[rd],type=\"n\",",control_plot1,")",environment())
   corner<-par("usr")
   mtext(sub_fig_label[1],side=2,outer=F,line=sub_fig_line,las=1,at=(corner[4]-corner[3])*sub_fig_k+corner[4],cex=sub_fig_cex)
   if(!is.null(expr1)){
     eval(expr1,envir=environment())
   }
-  if(!is.null(m_ci_cover)){
-    se<-sqrt(fit_data$m_sigma[,1])
-    q<-abs(qnorm((1-m_ci_cover)/2))
-    upper<-m1+q*se
-    lower<-m1-q*se
-    for(i in 1:length(m1)){
-      my_eval("lines(x=c(K1[rd[i]],K1[rd[i]]),y=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
+  if(!is.null(ci_cover)){
+    q<-abs(qnorm((1-ci_cover)/2))
+    upper<-h1+q*se_h[,1]
+    lower<-h1-q*se_h[,1]
+    for(i in 1:length(h1)){
+      my_eval("lines(x=c(k1[rd[i]],k1[rd[i]]),y=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
+    }
+    
+    upper<-k1+q*se_k[,1]
+    lower<-k1-q*se_k[,1]
+    for(i in 1:length(k1)){
+      my_eval("lines(y=c(h1[rd[i]],h1[rd[i]]),x=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
     }
   }
-  my_eval("points(x=K1[rd],y=m1[rd],bg=col2[rd],col=col1[rd],",control_points,")",environment())
-  my_eval("abline(b=1,a=0,",control_abline,")",environment())
   
-  control_plot2_org<-list(xlab=expression("Estimate of"~italic(K)[2]),ylab=expression("Estimate of"~italic(m)[2]),main="")
+  if(par_p2!=1&cluster_type==3){
+    if(par$final_Egger_flag){
+      my_eval("my_abline(b1=0,b0=par_u2,",c(list(range=c(0,Inf)),control_abline,list(col=cluster_color[2])),")",environment())
+      my_eval("my_abline(b1=0,b0=-par_u2,",c(list(range=c(-Inf,0)),control_abline,list(col=cluster_color[2])),")",environment())
+    }else{
+      my_eval("my_abline(b1=0,b0=par_u2,",c(list(range=c(-Inf,Inf)),control_abline,list(col=cluster_color[2])),")",environment())
+    }
+  }
+  if(par_u1!=0&par_p2!=0&cluster_type==3){
+    my_eval("abline(b=par_u1,a=par_u2,",c(control_abline,list(col=cluster_color[3])),")",environment())
+  }
+  my_eval("points(x=k1[rd],y=h1[rd],bg=col2[rd],col=col1[rd],",control_points,")",environment())
+  
+  control_plot2_org<-list(xlab=expression("Estimate of"~italic(k)[2]),ylab=expression("Estimate of"~italic(h)[2]),main="")
   control_plot2<-match.list2(control_plot2,control_plot2_org)
   
-  my_eval("plot(x=K2[rd],y=m2[rd],type=\"n\",",control_plot2,")",environment())
+  my_eval("plot(x=k2[rd],y=h2[rd],type=\"n\",",control_plot2,")",environment())
   corner<-par("usr")
   mtext(sub_fig_label[2],side=2,outer=F,line=sub_fig_line,las=1,at=(corner[4]-corner[3])*sub_fig_k+corner[4],cex=sub_fig_cex)
   if(!is.null(expr2)){
     eval(expr2,envir=environment())
   }
-  if(!is.null(m_ci_cover)){
-    se<-sqrt(fit_data$m_sigma[,3])
-    q<-abs(qnorm((1-m_ci_cover)/2))
-    upper<-m2+q*se
-    lower<-m2-q*se
-    for(i in 1:length(m2)){
-      my_eval("lines(x=c(K2[rd[i]],K2[rd[i]]),y=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
+  if(!is.null(ci_cover)){
+    q<-abs(qnorm((1-ci_cover)/2))
+    upper<-h2+q*se_h[,2]
+    lower<-h2-q*se_h[,2]
+    for(i in 1:length(h2)){
+      my_eval("lines(x=c(k2[rd[i]],k2[rd[i]]),y=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
+    }
+    
+    upper<-k2+q*se_k[,2]
+    lower<-k2-q*se_k[,2]
+    for(i in 1:length(k2)){
+      my_eval("lines(y=c(h2[rd[i]],h2[rd[i]]),x=c(lower[rd[i]],upper[rd[i]]),",control_lines,")",environment())
     }
   }
-  my_eval("points(x=K2[rd],y=m2[rd],bg=col2[rd],col=col1[rd],",control_points,")",environment())
-  my_eval("abline(b=1,a=0,",control_abline,")",environment())
+  
+  if(par_p2!=1&cluster_type==3){
+    if(par$final_Egger_flag){
+      my_eval("my_abline(b1=0,b0=2*par_u2,",c(list(range=c(0,Inf)),control_abline,list(col=cluster_color[2])),")",environment())
+      my_eval("my_abline(b1=0,b0=-2*par_u2,",c(list(range=c(-Inf,0)),control_abline,list(col=cluster_color[2])),")",environment())
+    }else{
+      my_eval("my_abline(b1=0,b0=2*par_u2,",c(list(range=c(-Inf,Inf)),control_abline,list(col=cluster_color[2])),")",environment())
+    }
+  }
+  if(par_u1!=0&par_p2!=0&cluster_type==3){
+    my_eval("abline(b=par_u1,a=2*par_u2,",c(control_abline,list(col=cluster_color[3])),")",environment())
+  }
+  my_eval("points(x=k2[rd],y=h2[rd],bg=col2[rd],col=col1[rd],",control_points,")",environment())
   
   control_legend_org<-list(draw_legend=T,mar=c(2,0,2,2),x_extend=0.05,width=0.4,
                            border_col="gray",border_lwd=1,
@@ -364,40 +471,88 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
     }
     label<-apply(post_prob,1,FUN=function(x){paste0("(",paste0(myround(x,2),collapse=", "),")")})
     label<-paste(rownames(post_prob),label)
-    if(!is.null(m_ci_cover)){
-      se<-sqrt(fit_data$m_sigma[,1])
-      q<-abs(qnorm((1-m_ci_cover)/2))
-      upper<-m1+q*se
-      lower<-m1-q*se
+    
+    p01<-ggplot(data=data.frame(x=k1[rd],y=h1[rd],label=label[rd]),mapping=aes(x=x,y=y,key=label))
+    
+    if(!is.null(ci_cover)){
+      q<-abs(qnorm((1-ci_cover)/2))
+      upper<-h1+q*se_h[,1]
+      lower<-h1-q*se_h[,1]
       p1_line<-geom_errorbar(mapping=aes(ymin=lower,ymax=upper),
-                             data=data.frame(x=K1[rd],y=m1[rd],upper=upper[rd],lower=lower[rd]),
+                             data=data.frame(x=k1[rd],y=h1[rd],upper=upper[rd],lower=lower[rd]),
                              colour="gray")
+      
+      upper<-k1+q*se_k[,1]
+      lower<-k1-q*se_k[,1]
+      p12_line<-geom_errorbar(mapping=aes(xmin=lower,xmax=upper),
+                              data=data.frame(x=k1[rd],y=h1[rd],upper=upper[rd],lower=lower[rd]),
+                              colour="gray")
     }else{
       p1_line<-NULL
+      p12_line<-NULL
     }
+    
+    p01<-p01+p1_line+p12_line
+    
+    if(par_p2!=1&cluster_type==3){
+      if(par$final_Egger_flag){
+        p01<-p01+my_abline_ggplot(b0=par_u2,b1=0,range=c(0,Inf),obj_ggplot=p01,lty=2,color=cluster_color[2])+
+          my_abline_ggplot(b0=-par_u2,b1=0,range=c(-Inf,0),obj_ggplot=p01,lty=2,color=cluster_color[2])
+      }else{
+        p01<-p01+my_abline_ggplot(b0=par_u2,b1=0,range=c(-Inf,Inf),obj_ggplot=p01,lty=2,color=cluster_color[2])
+      }
+    }
+    
+    if(par_u1!=0&par_p2!=0&cluster_type==3){
+      p01<-p01+geom_abline(slope=par_u1,intercept=par_u2,lty=2,color=cluster_color[3])
+    }
+    
     p1_point<-geom_point(size=2,stroke=0.6,shape=21,colour=col1[rd],fill=col2[rd])
-    p1<-ggplot(data=data.frame(x=K1[rd],y=m1[rd],label=label[rd]),mapping=aes(x=x,y=y,key=label))+
-      p1_line+p1_point+geom_abline(slope=1,intercept=0,lty=2)+
-      xlab("Estimate of K_1")+
-      ylab("Estimate of m_1")+
+    p1<-p01+p1_point+
+      xlab("Estimate of k_1")+
+      ylab("Estimate of h_1")+
       theme_bw()+theme(legend.position='none')
     
-    if(!is.null(m_ci_cover)){
-      se<-sqrt(fit_data$m_sigma[,3])
-      q<-abs(qnorm((1-m_ci_cover)/2))
-      upper<-m2+q*se
-      lower<-m2-q*se
+    p02<-ggplot(data=data.frame(x=k2[rd],y=h2[rd],label=label[rd]),mapping=aes(x=x,y=y,key=label))
+    
+    if(!is.null(ci_cover)){
+      q<-abs(qnorm((1-ci_cover)/2))
+      upper<-h2+q*se_h[,2]
+      lower<-h2-q*se_h[,2]
       p2_line<-geom_errorbar(mapping=aes(ymin=lower,ymax=upper),
-                             data=data.frame(x=K2[rd],y=m2[rd],upper=upper[rd],lower=lower[rd]),
+                             data=data.frame(x=k2[rd],y=h2[rd],upper=upper[rd],lower=lower[rd]),
                              colour="gray")
+      
+      upper<-k2+q*se_k[,2]
+      lower<-k2-q*se_k[,2]
+      p22_line<-geom_errorbar(mapping=aes(xmin=lower,xmax=upper),
+                              data=data.frame(x=k2[rd],y=h2[rd],upper=upper[rd],lower=lower[rd]),
+                              colour="gray")
+      
     }else{
       p2_line<-NULL
+      p22_line<-NULL
     }
+    
+    p02<-p02+p2_line+p22_line
+    
+    if(par_p2!=1&cluster_type==3){
+      if(par$final_Egger_flag){
+        p02<-p02+my_abline_ggplot(b0=2*par_u2,b1=0,range=c(0,Inf),obj_ggplot=p02,lty=2,color=cluster_color[2])+
+          my_abline_ggplot(b0=-2*par_u2,b1=0,range=c(-Inf,0),obj_ggplot=p02,lty=2,color=cluster_color[2])
+      }else{
+        p02<-p02+my_abline_ggplot(b0=2*par_u2,b1=0,range=c(-Inf,Inf),obj_ggplot=p02,lty=2,color=cluster_color[2])
+      }
+    }
+    
+    if(par_u1!=0&par_p2!=0&cluster_type==3){
+      p02<-p02+geom_abline(slope=par_u1,intercept=2*par_u2,lty=2,color=cluster_color[3])
+    }
+    
     p2_point<-geom_point(size=2,stroke=0.6,shape=21,colour=col1[rd],fill=col2[rd])
-    p2<-ggplot(data=data.frame(x=K2[rd],y=m2[rd],label=label[rd]),mapping=aes(x=x,y=y,key=label))+
-      p2_line+p2_point+geom_abline(slope=1,intercept=0,lty=2)+
-      xlab("Estimate of K_2")+
-      ylab("Estimate of m_2")+
+    p2<-p02+p2_point+
+      xlab("Estimate of k_2")+
+      ylab("Estimate of h_2")+
       theme_bw()+theme(legend.position='none')
     p1<-ggplotly(p1)
     p2<-ggplotly(p2)
@@ -407,8 +562,8 @@ plot.mrp.p3<-function(est_out,m_ci_cover=0.95,use_trans=T,trans_lower=0,reorder=
   if(!is.null(obj_name)){
     names(cluster)<-rownames(post_prob)
     assign(obj_name,list(post_prob=post_prob,cluster=cluster,
-                         data1=list(K1=K1,m1=m1,m1_se=sqrt(fit_data$m_sigma[,1])),
-                         data2=list(K2=K2,m2=m2,m2_se=sqrt(fit_data$m_sigma[,3]))),envir=.GlobalEnv)
+                         data1=list(k1=k1,h1=h1,k1_se=se_k[,1],h1_se=se_h[,1]),
+                         data2=list(k2=k2,h2=h2,k2_se=se_k[,2],h2_se=se_h[,2])),envir=.GlobalEnv)
   }
   invisible()
 }
