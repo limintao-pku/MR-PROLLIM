@@ -38,7 +38,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
     return("pass")
   }
   check_genoud_par(...,return_list=F)
-
+  
   #check data
   if(cd){
     g<-check_data(x=x,y=y,g=g,c=c,c_inherit=c_inherit,type="b",u_limit=max_unique,cd_g_code=cd_g_code,twosample_data=NULL)[[1]]
@@ -232,7 +232,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
     nlminb_scale<-nlminb_control$scale
     if(is.null(nlminb_scale)){nlminb_scale<-1}
     nlminb_control[which(names(nlminb_control)=="scale")]<-NULL
-
+    
     f_ivw_random<-function(beta,eff,se,est_vcov=F){
       if(est_vcov){
         s2<-beta[2]^2
@@ -701,7 +701,9 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
   }
   
   if(est_type%in%c("p1","p2")){
-    control_p12_org<-list(k1_td_p=0.1,k1_td_adj_m="fdr",delta_p_cut=0.01,boot_n=10000,
+    control_p12_org<-list(k1_td_p=0.1,k1_td_adj_m="fdr",delta_p_cut=0.01,
+                          delta_p_cut2=0.1,delta_p2_adj_m="fdr",
+                          boot_n=10000,
                           p2_cut=0.05,p2_cut_adj_m="none",p2_cut2=0.05,p2_cut2_adj_m="none",
                           p3_cut=0.05,p3_cut_adj_m="bonferroni",select_list=NULL,
                           n_random=NULL,n_max=2^16,twosnp_p_cut=1e-5,
@@ -717,9 +719,9 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
     fitp2<-NULL
     if(dt){cat("Start direct HP test.\r\n")}
     fit1<-est_proc_bi_p1_dl(x=x,y=y,g_suit=g,c=c,c_inherit=c_inherit,dum_loc_list=dum_loc_list,start=start,mc.cores=mc.cores,PSOCK=PSOCK,parallel_trace=parallel_trace,dt=dt,
-                            k1_td_p=control_p12$k1_td_p,k1_td_adj_m=control_p12$k1_td_adj_m,delta_p_cut=control_p12$delta_p_cut,
+                            k1_td_p=control_p12$k1_td_p,k1_td_adj_m=control_p12$k1_td_adj_m,delta_p_cut=control_p12$delta_p_cut,delta_p_cut2=control_p12$delta_p_cut2,delta_p2_adj_m=control_p12$delta_p2_adj_m,
                             p2_cut=control_p12$p2_cut,p2_cut_adj_m=control_p12$p2_cut_adj_m,p2_cut2=control_p12$p2_cut2,p2_cut2_adj_m=control_p12$p2_cut2_adj_m,p3_cut=control_p12$p3_cut,p3_cut_adj_m=control_p12$p3_cut_adj_m,boot_n=control_p12$boot_n,
-                            select_list=control_p12$select_list,
+                            select_list=control_p12$select_list,outlier_detect_sub=control_p12$outlier_detect,
                             d=.Machine$double.eps^(1/3),n_random=control_p12$n_random,n_max=control_p12$n_max,twosnp_p_cut=control_p12$twosnp_p_cut,
                             p_limit=control_p12$p_prop_limit,est_type=est_type,data_k_all_list=data_k_all_list,crt_data3_list=data_p12,nlminb_control=control_p12$nlminb_control)
     if("myerror"%in%class(fit1)){
@@ -1125,7 +1127,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         m_hat<-rbind(m_hat)
         m_sigma<-rbind(c(mkp_vcov[1,1],mkp_vcov[1,2],mkp_vcov[2,2]))
         k_hat<-rbind(c(data_k_hat_all[1:2],out0))
-
+        
         j<-anyNA(m_hat)|anyNA(m_sigma)|anyNA(k_hat)|anyNA(vcov)|anyNA(mkp_vcov)|anyNA(mkp_ind)|anyNA(loc_m)
       }
       
@@ -1735,7 +1737,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         return(list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_list,mkp_sigma_list=mkp_sigma_list,wald_p=wald_p,u_input=u_input,mkp_ind_list=mkp_ind_list,nonNA_loc_list=nonNA_loc_list))
       }
     }
-      
+    
     if(control_p3$nome==F){
       t_b1<-control_p3$t_b1
       
@@ -1920,7 +1922,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         control_gs$lower[5]<-beta_start[5]-control_gs$auto_s1_k
         control_gs$upper[5]<-beta_start[5]+control_gs$auto_s1_k
       }
-
+      
       #check initial value
       if(dt){cat("Check initial value.\r\n")}
       while(T){
@@ -2361,7 +2363,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         
         fit$estimate0<-fit$estimate
         fit$estimate<-ext_estimate(fit$estimate,beta_start0,beta_loc)
-
+        
         if(control_p3$model_select==F){break}
         diag_out<-diagnose_fit(fit,p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,lower=control_p3$check_fit_lower,upper=control_p3$check_fit_upper,myEgger=myEgger0,dt=dt)
         if(identical(diag_out,"pass")){
@@ -2822,12 +2824,12 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
                 }
               }else{
                 fit1_egger<-tryCatch({GenSA::GenSA(fn=est_proc_bi_p3_f0,par=beta_start,
-                                                 lower=control_gs$lower[beta_loc],
-                                                 upper=control_gs$upper[beta_loc],
-                                                 control=update_GenSA(control_gs$GenSA_control,1),
-                                                 m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
-                                                 sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
-                                                 p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,beta_loc=beta_loc
+                                                   lower=control_gs$lower[beta_loc],
+                                                   upper=control_gs$upper[beta_loc],
+                                                   control=update_GenSA(control_gs$GenSA_control,1),
+                                                   m_matrix=m_hat,sigma1_matr=sigma1_matr,k_matrix=k_hat,
+                                                   sign_k1=signk$sign_k1,sign_k2=signk$sign_k2,
+                                                   p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,t_b1=t_b1,beta_loc=beta_loc
                 )},error=function(e){return(e)})
               }
               
@@ -3046,7 +3048,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         return(list(fit=fit,fit_nlminb=fit_nlminb,fit_gs=fit_gs,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_list,
                     mkp_sigma_list=mkp_sigma_list,wald_p=wald_p,u_input=u_input))
       }
-
+      
       #bootstrap
       vcov_boot<-out_boot<-NULL
       if(boot_se){
@@ -3153,5 +3155,3 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
     }
   }
 }
-
-

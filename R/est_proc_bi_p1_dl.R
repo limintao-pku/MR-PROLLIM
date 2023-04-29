@@ -1,7 +1,7 @@
 est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,PSOCK,parallel_trace,dt,
-                            k1_td_p=0.1,k1_td_adj_m="bonferroni",delta_p_cut=0.01,
+                            k1_td_p=0.1,k1_td_adj_m="bonferroni",delta_p_cut=0.01,delta_p_cut2=0.1,delta_p2_adj_m="fdr",
                             p2_cut=0.1,p2_cut_adj_m="none",p2_cut2=0.05,p2_cut2_adj_m="none",p3_cut=0.05,p3_cut_adj_m="bonferroni",boot_n=10000,
-                            select_list=NULL,
+                            select_list=NULL,outlier_detect_sub=F,
                             d=.Machine$double.eps^(1/3),n_random=NULL,n_max=2^16,twosnp_p_cut=1e-5,
                             p_limit,est_type,data_k_all_list=NULL,crt_data3_list=NULL,nlminb_control=list()){
   stopifnot(p3_cut_adj_m%in%c("bonferroni","bonf","none"))
@@ -114,7 +114,7 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
     #fb12<-suppressWarnings((m_td*k2_td-2*k1_td+sqrt(delta))/(2*k1_td^2))
     #expb41<-suppressWarnings(exp(m1)/(k1_td*fb11+1))
     #expb42<-suppressWarnings(exp(m1)/(k1_td*fb12+1))
-
+    
     return(
       list(fb11=c(est=fb101,se=sqrt(v1)),
            fb12=c(est=fb102,se=sqrt(v2)),
@@ -557,6 +557,9 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
   }
   names(fit_b1_b4)<-names(myfit)[loc1]
   loc2<-unlist(lapply(fit_b1_b4,FUN=function(x){x$j}))
+  delta_p2<-unlist(lapply(fit_b1_b4,FUN=function(x){x$delta_p}))[loc2]
+  if(anyNA(delta_p2)){warning("NAs detected in delta_p2.")}
+  loc2[loc2]<-p.adjust(delta_p2,delta_p2_adj_m)<delta_p_cut2
   name_suit<-names(fit_b1_b4)[loc2]
   
   if(sum(loc2)<=1){
@@ -567,17 +570,21 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
   }
   
   if(est_type=="p2"){
-    f<-function(fit_b1_b4){
+    f<-function(fit_b1_b4,loc2){
       f1<-function(x){
         pnorm(-abs((x[1]-1)/x[2]))*2
       }
       out<-NULL
       for(i in 1:length(fit_b1_b4)){
-        out<-c(out,c(f1(fit_b1_b4[[i]]$expb41),f1(fit_b1_b4[[i]]$expb42)))
+        if(loc2[i]){
+          out<-c(out,c(f1(fit_b1_b4[[i]]$expb41),f1(fit_b1_b4[[i]]$expb42)))
+        }else{
+          out<-c(out,c(NA,NA))
+        }
       }
       return(out)
     }
-    p2<-f(fit_b1_b4)
+    p2<-f(fit_b1_b4,loc2)
     p2<-matrix(p.adjust(p2,p2_cut_adj_m)<p2_cut,ncol=2,byrow=T)
     loc3<-apply(p2,1,FUN=function(x){!identical(x,c(T,T))})&loc2
   }else{
@@ -597,7 +604,7 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
     class(out)<-"myerror"
     return(out)
   }
-
+  
   get_data<-function(fit_b1_b4,loc,p_cut,adj_m,select_list){
     est_list<-se_list<-fb1_indiv<-est_list2<-se_list2<-list()
     if(!is.null(select_list)){
@@ -679,10 +686,10 @@ est_proc_bi_p1_dl<-function(x,y,g_suit,c,c_inherit,dum_loc_list,start,mc.cores,P
   if(length(fit2$eff)>1){
     q<-cochran_q(fit2$eff,fit2$se)
     p<-pchisq(q,length(fit2$eff)-1,lower.tail=F)
-    if(p<0.05){message(paste("Heterogeneity detected.\r\nQ_stat:",round(q,2)," P_value:",formatC(p,digits=2,format="e")))}
+    if(p<0.05&(!outlier_detect_sub)){message(paste("Heterogeneity detected in root selection.\r\nQ_stat:",round(q,2)," P_value:",formatC(p,digits=2,format="e")))}
   }else{
     q<-NA
     p<-NA
   }
-  return(list(eff=fit2$eff,se=fit2$se,fb1_indiv=fit2$fb1_indiv,exph_est=fit2$eff2,exph_se=fit2$se2,name_suit=name_suit,dl_data1=myfit,dl_data2=fit_b1_b4[loc3],Q_stage1=c(Q=q,p.value=p)))
+  return(list(eff=fit2$eff,se=fit2$se,fb1_indiv=fit2$fb1_indiv,exph_est=fit2$eff2,exph_se=fit2$se2,name_suit=name_suit,dl_data1=myfit,dl_data2=fit_b1_b4[loc3],Q_test=c(Q=q,p.value=p)))
 }

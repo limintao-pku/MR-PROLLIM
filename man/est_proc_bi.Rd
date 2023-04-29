@@ -223,7 +223,8 @@ control_limit_c = list(limit_c=T,dum_loc="auto",quantile=c(0,1),outlier=T)
 
 \preformatted{
 control_p12 = list(k1_td_p=0.1,k1_td_adj_m="fdr",
-                   delta_p_cut=0.01,boot_n=10000,
+                   delta_p_cut=0.01,delta_p_cut2=0.1,delta_p2_adj_m="fdr",
+                   boot_n=10000,
                    p2_cut=0.05,p2_cut_adj_m="none",
                    p2_cut2=0.05,p2_cut2_adj_m="none",
                    p3_cut=0.05,p3_cut_adj_m="bonferroni",
@@ -240,6 +241,7 @@ control_p12 = list(k1_td_p=0.1,k1_td_adj_m="fdr",
 }
 > \code{k1_td_p}: Cutoff \emph{P} value for k1_td.\cr
 > \code{delta_p_cut}: Simulated probability for delta < 0 should be higher than \code{delta_p_cut}.\cr
+> \code{delta_p_cut2, delta_p2_adj_m}: Simulated probability for delta < 0 should additionally satisfy these  arguments after adjustment.\cr 
 > \code{boot_n}: Number of repeats for calculating the simulated probabilities and the bootstrap standard errors in Procedure 1 and 2.\cr
 > \code{p2_cut}: Cutoff \emph{P} value for removing SNPs judged to be with HP before the root selection procedure.\cr
 > \code{p2_cut2}: Cutoff \emph{P} value for removing SNPs judged to be with HP after the root selection procedure.\cr
