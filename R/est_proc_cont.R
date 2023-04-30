@@ -8,7 +8,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
                         control_p3=NULL,data_p3_k=NULL,data_p3=NULL,data_p3_opt=NULL,
                         control_est_k_prior=NULL,control_est_k_post=NULL,control_global_search=NULL,
                         control_me_mo_q_re=NULL,data_me_mo_q_re=NULL,...
-                        ){
+){
   c_cat<-F#legacy
   stopifnot(is.matrix(g))
   est_type<-match.arg(est_type)
@@ -58,7 +58,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
     return("pass")
   }
   check_genoud_par(...,return_list=F)
-
+  
   #check data
   if(cd){
     z<-check_data(x=x,y=y,g=g,c=c,c_inherit=c_inherit,type="c",u_limit=max_unique,twosample_data=twosample_data,cd_g_code=cd_g_code)
@@ -1725,7 +1725,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
           fit_k<-tryCatch({est_k_prior(k_hat,sigma2_matr,NULL,NULL,p_cut=k_prior_p,u1_sp=control_est_k_prior$u1_sp,p0_sp=control_est_k_prior$p0_sp,start=control_est_k_prior$start,
                                        p0_start=control_est_k_prior$p0_start,mc.cores=mc.cores,dt=dt,PSOCK=PSOCK,
                                        nlminb_control=control_est_k_prior$nlminb_control)},error=function(e){e})
-
+          
           if("error"%in%class(fit_k)){
             warning(fit_k)
             if(k_prior_p<1e-9){
@@ -1736,7 +1736,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
               return(list(fit_k_prior=fit_k,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input))
             }
           }
-          if(dt){print(unlist(fit_k$par))}
+          #if(dt){print(unlist(fit_k$par))}
         }
         
         v2s_matr<-function(x){
@@ -2349,7 +2349,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
                     post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                     mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,post_messages=post_messages))
       }
-
+      
       #bootstrap
       vcov_boot<-out_boot<-NULL
       if(boot_se){

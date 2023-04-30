@@ -1787,7 +1787,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               return(list(fit_k_prior=fit_k,m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_list,mkp_sigma_list=mkp_sigma_list,wald_p=wald_p,u_input=u_input))
             }
           }
-          if(dt){print(unlist(fit_k$par))}
+          #if(dt){print(unlist(fit_k$par))}
         }
         fit_p_td<-NULL
         
