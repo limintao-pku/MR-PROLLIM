@@ -3,7 +3,7 @@
 \alias{MRprollim}
 \docType{package}
 \title{
-  MR-PROLLIM: Mendelian Randomization with Pleiotropy-Robust Log-Linear Models
+  MR-PROLLIM: Mendelian Randomization with Pleiotropy-Robust Log-Linear Model
 }
 \description{
   This package implements the MR-PROLLIM algorithms.
