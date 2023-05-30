@@ -72,6 +72,7 @@ est_variance_ml<-function(f,beta_opt,...,n,loc,beta_name,name=NULL,sandwich=T,he
   
   if(save_sandw){
     assign("vcov_sandw",sandw,envir=parent.frame())
+    assign("vcov_hess",invh,envir=parent.frame())
   }
   
   return(out_cov[loc,loc])

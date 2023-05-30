@@ -8,7 +8,8 @@
 }
 
 \usage{
-summary.mrp(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5)
+summary.mrp(est_out,sd,se_u1_method=c("hessian","sandwich","b1"),
+            s1_cut_k=0.01,p12_hat_cut=0.5)
 }
 \arguments{
 \item{est_out}{
@@ -21,10 +22,10 @@ to produce result summaries corresponding to 1-unit increase of the exposure.
 \code{sd = 1} means 1-sd increase of the exposure. For output from \code{est_proc_bi},
 this argument will be fixed at 1.
 }
-\item{robust_u1}{
-Whether to use the sandwich standard error of u1 to calculate the \emph{P} value. This argument 
-leads to a difference if the covariance matrix for random-effects MR-PROLLIM is not estimated using 
-the sandwich method. 
+\item{se_u1_method}{
+The method used to compute the standard error for u1. "hessian" indicates the inverse Hessian method.
+"sandwich" indicates the sandwich method. "b1" means the same method as that used for b1. "hessian" is
+chosen as the default.
 }
 \item{s1_cut_k}{
 If the estimate of s1 for random-effects MR-PROLLIM is < \code{median(sqrt(est_out$data$m_sigma[,1]))*s1_cut_k}, a

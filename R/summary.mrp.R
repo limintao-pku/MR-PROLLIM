@@ -1,4 +1,4 @@
-summary.mrp<-function(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5){
+summary.mrp<-function(est_out,sd,se_u1_method=c("hessian","sandwich","b1"),s1_cut_k=0.01,p12_hat_cut=0.5){
   trans_proc_p3.2<-function(beta_norm,p1_sp=NULL,p2_sp=NULL,r_sp=NULL,model_u2=T,est_type="b"){
     if(anyNA(beta_norm)){return(c(b1=NA,p1=NA,p2=NA,u1=NA,s1=NA,r=NA,u2=NA))}
     mod_f<-function(x,r=F){
@@ -66,6 +66,7 @@ summary.mrp<-function(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5){
   }
   
   stopifnot(sd>0)
+  se_u1_method<-match.arg(se_u1_method)
   
   #p12 and mmqr
   out<-NULL
@@ -154,11 +155,20 @@ summary.mrp<-function(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5){
   se_all<-rep(0,7)
   names(se_all)<-names(est_list$beta_norm)
   se_asy<-match.list(se_asy,se_all,T)
-  if(robust_u1){
+  if(se_u1_method=="hessian"){
+    se_u1<-est_list$se_u1_hessian
+    if(is.na(se_u1)){se_u1<-0}
+    se_asy[4]<-se_u1
+  }
+  if(se_u1_method=="sandwich"|se_asy[4]<=0){
+    if(se_u1_method!="sandwich"&!is.na(est_list$se_u1_sandwich)&is.na(est_list$se_u1_hessian)){
+      warning("There seems to be a numerical problem in computing the Hessian matrix. Sandwich variance estimate for u1 is used.")
+    }
     se_u1<-est_list$se_u1_sandwich
     if(is.na(se_u1)){se_u1<-0}
     se_asy[4]<-se_u1
   }
+  
   se_boot<-as.numeric(sqrt(diag(est_list$vcov_boot)))
   if(identical(se_boot,numeric(0))){se_boot<-NA}
   beta<-trans_proc_p3.2(est_list$beta_norm,p1_sp=par[["p1_sp"]],p2_sp=par[["p2_sp"]],r_sp=par[["r_sp"]],model_u2=par[["model_u2"]],est_type=par[["est_type"]])
@@ -195,12 +205,9 @@ summary.mrp<-function(est_out,sd,robust_u1=T,s1_cut_k=0.01,p12_hat_cut=0.5){
   
   if(beta[2]*beta[3]>p12_hat_cut){
     out_message<-c(out_message,"A large p1_hat*p2_hat is detected.")
-    p_u1<-est_list$p_u1_sandwich
-    if(!is.na(p_u1)){
-      out_message<-c(out_message,paste("Sandwich P value for u1 = 0 according to the current model is",p_u1))
-      if(!identical(model,"Reduced model")){
-        out_message<-c(out_message,"A more precise P value for u1 = 0 can be obtained from the reduced model.")
-      }
+    out_message<-c(out_message,"u1_hat can be used to judge the suitability of the zero-correlation model.")
+    if(!identical(model,"Reduced model")){
+      out_message<-c(out_message,"A more precise P value for u1 = 0 can be obtained by the reduced model.")
     }
   }
   

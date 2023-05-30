@@ -2433,11 +2433,10 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
                                         post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
                                         p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,individual=F,vcov_est=T)},error=function(e){return(e)})
       
-      se_u1<-p_u1<-NA
+      se_u1_hessian<-se_u1_sandwich<-NA
       if(!"error"%in%class(vcov)){
-        se_u1<-tryCatch({sqrt(vcov_sandw["u1","u1"])},error=function(e){NA})
-        p_u1<-pnorm(-abs(beta_norm["u1"]/se_u1))*2
-        names(p_u1)<-NULL
+        se_u1_hessian<-tryCatch({suppressWarnings(sqrt(vcov_hess["u1","u1"]))},error=function(e){NA})
+        se_u1_sandwich<-tryCatch({suppressWarnings(sqrt(vcov_sandw["u1","u1"]))},error=function(e){NA})
       }
       
       #output
@@ -2446,7 +2445,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
       }else{
         final_Egger_flag<-F
       }
-      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
+      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1_sandwich,se_u1_hessian=se_u1_hessian)
       par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info,final_Egger_flag=final_Egger_flag)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=fit_k,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,
                                                                                                                                     k_sigma=sigma2_matr,post_sample_k1=post_sample_k1,post_sample_k2=post_sample_k2,
@@ -3016,11 +3015,10 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
                                       p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,
                                       individual=T,vcov_est=T,save_sandw=T)},error=function(e){return(e)})
       
-      se_u1<-p_u1<-NA
+      se_u1_hessian<-se_u1_sandwich<-NA
       if(!"error"%in%class(vcov)){
-        se_u1<-tryCatch({sqrt(vcov_sandw["u1","u1"])},error=function(e){NA})
-        p_u1<-pnorm(-abs(beta_norm["u1"]/se_u1))*2
-        names(p_u1)<-NULL
+        se_u1_hessian<-tryCatch({suppressWarnings(sqrt(vcov_hess["u1","u1"]))},error=function(e){NA})
+        se_u1_sandwich<-tryCatch({suppressWarnings(sqrt(vcov_sandw["u1","u1"]))},error=function(e){NA})
       }
       
       #output
@@ -3029,7 +3027,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
       }else{
         final_Egger_flag<-F
       }
-      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1,p_u1_sandwich=p_u1)
+      out<-list(beta_norm=beta_norm,vcov=vcov,vcov_boot=vcov_boot,se_u1_sandwich=se_u1_sandwich,se_u1_hessian=se_u1_hessian)
       par<-list(p1_sp=p1_sp,p2_sp=p2_sp,r_sp=r_sp,model_u2=model_u2,est_type="c",Egger_info=Egger_info,final_Egger_flag=final_Egger_flag)
       out<-list(estimate=out,parameter=par,maxlik=list(fit_final=fit,fit_gs=fit_gs,fit_nlminb=fit_nlminb),prior_est=NULL,data=list(m_hat=m_hat,m_sigma=sigma1_matr,k_hat=k_hat,k_sigma=sigma2_matr,
                                                                                                                                    mk_sigma_list=mk_sigma_list,wald_p=wald_p,u_input=u_input,boot_data=out_boot))

@@ -112,6 +112,8 @@ est_variance_reMP<-function(f,beta_opt,...,beta_name=NULL,name="est_variance_reM
   if(save_sandw){
     colnames(sandw)<-rownames(sandw)<-beta_name[loc]
     assign("vcov_sandw",sandw,envir=parent.frame())
+    colnames(invh)<-rownames(invh)<-beta_name[loc]
+    assign("vcov_hess",invh,envir=parent.frame())
   }
   if(!adj_rs){return(out_cov)}
   
