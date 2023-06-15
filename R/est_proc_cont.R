@@ -831,7 +831,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
   
   if(est_type=="p3"){
     control_est_k_prior_org<-list(p_snp="previous",start=c(0,0,-1,-1,1),p0_start=c(seq(0.1,0.9,by=0.2),0.99,0.01),
-                                  auto_s=T,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
+                                  auto_s=T,auto_s_offset=1,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
                                   nlminb_control=list(rel.tol=1e-10,sing.tol=1e-10,step.min=1,eval.max=300,iter.max=300))
     control_est_k_post_org<-list(n_post=3000,n0=10000,p_cover=0.9999,f=NULL)
     control_est_k_prior<-match.list(control_est_k_prior,control_est_k_prior_org)
@@ -1720,7 +1720,7 @@ est_proc_cont<-function(x,y,g,c=NULL,c_inherit=T,dt=T,mc.cores=1,PSOCK=F,paralle
           if(control_est_k_prior$auto_s){
             auto_s_out<-apply(k_hat,2,FUN=var)
             stopifnot(!anyNA(auto_s_out))
-            control_est_k_prior$start[3:4]<-floor(log(auto_s_out))
+            control_est_k_prior$start[3:4]<-floor(log(auto_s_out))+control_est_k_prior$auto_s_offset
           }
           fit_k<-tryCatch({est_k_prior(k_hat,sigma2_matr,NULL,NULL,p_cut=k_prior_p,u1_sp=control_est_k_prior$u1_sp,p0_sp=control_est_k_prior$p0_sp,start=control_est_k_prior$start,
                                        p0_start=control_est_k_prior$p0_start,mc.cores=mc.cores,dt=dt,PSOCK=PSOCK,

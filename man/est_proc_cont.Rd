@@ -277,7 +277,7 @@ control_p3 = list(n_snp_limit=50,
 \preformatted{
 control_est_k_prior = list(p_snp="previous",start=c(0,0,-1,-1,1),
                            p0_start=c(seq(0.1,0.9,by=0.2),0.99,0.01),auto_s=T,
-                           p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
+                           auto_s_offset=1,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
                            nlminb_control=list(rel.tol=1e-10,sing.tol=1e-10,
                                                step.min=1,eval.max=300,
                                                iter.max=300))
@@ -285,7 +285,7 @@ control_est_k_prior = list(p_snp="previous",start=c(0,0,-1,-1,1),
 > \code{p_snp}: Cutoff Wald \emph{P} value for \code{est_k_prior}. 'previous' means being consistent with \code{p_snp} of \code{est_proc_cont}. It can also be 'max', in which case the maximum Wald \emph{P} value will be used. It can also be a number.\cr
 > \code{start}: Starting point for \code{est_k_prior}. See our paper for more details.\cr
 > \code{p0_start}: Use each of the values as the initial p0 for \code{est_k_prior}. If \code{p0_start} is not NULL, values in \code{p0_start} will be transformed and inserted into \code{control_est_k_prior$start[1]} for the optimization.\cr 
-> \code{auto_s}: Whether to let MR-PROLLIM automatically sets starting values for s01_t and s02_t. These values equal floor(log(apply(k_hat[,1:2],2,FUN=var))). Note that sqrt(exp(s01_t))=s01 and sqrt(exp(s02_t))=s02.\cr
+> \code{auto_s} and \code{auto_s_offset}: Whether to let MR-PROLLIM automatically sets starting values for s01_t and s02_t. These values equal floor(log(apply(k_hat[,1:2],2,FUN=var)))+auto_s_offset. Note that sqrt(exp(s01_t))=s01 and sqrt(exp(s02_t))=s02.\cr
 > \code{p0_sp} and \code{u1_sp}: Specify some parameters for the model of \code{est_k_prior}. See our paper for more details.\cr
 > \code{p0_cut}: If the finally used \code{p_snp} < \code{p0_cut}, \code{p0_sp} will be set to 0.\cr
 > \code{nlminb_control}: See \code{\link[stats]{nlminb}}.\cr\cr

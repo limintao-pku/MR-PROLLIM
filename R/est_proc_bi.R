@@ -858,7 +858,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
   
   if(est_type=="p3"){
     control_est_k_prior_org<-list(p_snp="previous",start=c(0,0,-1,-1,1),p0_start=c(seq(0.1,0.9,by=0.2),0.99,0.01),
-                                  auto_s=T,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
+                                  auto_s=T,auto_s_offset=1,p0_sp=NULL,p0_cut=1e-8,u1_sp=NULL,
                                   nlminb_control=list(rel.tol=1e-10,sing.tol=1e-10,step.min=1,eval.max=300,iter.max=300))
     control_est_k_post_org<-list(n_post=3000,n0=10000,p_cover=0.9999,f=NULL)
     control_est_k_prior<-match.list(control_est_k_prior,control_est_k_prior_org)
@@ -1772,7 +1772,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
           if(control_est_k_prior$auto_s){
             auto_s_out<-apply(rbind(k_hat[,1:2]),2,FUN=var)
             stopifnot(!anyNA(auto_s_out))
-            control_est_k_prior$start[3:4]<-floor(log(auto_s_out))
+            control_est_k_prior$start[3:4]<-floor(log(auto_s_out))+control_est_k_prior$auto_s_offset
           }
           fit_k<-tryCatch({est_k_prior(k_hat[,1:2],NULL,sigma2_list2,sigma2_list3,p_cut=k_prior_p,u1_sp=control_est_k_prior$u1_sp,p0_sp=control_est_k_prior$p0_sp,start=control_est_k_prior$start,
                                        p0_start=control_est_k_prior$p0_start,mc.cores=mc.cores,dt=dt,PSOCK=PSOCK,
@@ -2548,7 +2548,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
         se_u1_hessian<-tryCatch({suppressWarnings(sqrt(vcov_hess["u1","u1"]))},error=function(e){NA})
         se_u1_sandwich<-tryCatch({suppressWarnings(sqrt(vcov_sandw["u1","u1"]))},error=function(e){NA})
       }
-
+      
       #output
       if(identical(as.numeric(p1_sp),1)&identical(as.numeric(p2_sp),0)&identical(myEgger0,T)){
         final_Egger_flag<-T
