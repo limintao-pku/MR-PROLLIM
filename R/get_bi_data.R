@@ -1,13 +1,12 @@
 get_bi_data<-function(n,PAHP=F){
   #this function generates genotype and phenotype data for MR-PROLLIM. The exposure is binary.
-  n_snp<-100
+  n_snp<-125
   
   c<-rbinom(n,1,0.5)
   u10<-0.9*rnorm(n)+sqrt(1-0.9^2)*c*2
   u20<-0.9*rnorm(n)+sqrt(1-0.9^2)*c*2
   
-  pg<-runif(n_snp,0.1,0.4)
-  k0<-runif(n_snp,-0.05,0.05)
+  k0<-runif(n_snp,-0.05,0.05);pg<-runif(n_snp,0.1,0.4)
   g<-crt_MR_g(n_snp,n,matrix(pg,nrow=n,ncol=n_snp,byrow=T)+
                 t(t(matrix(c,nrow=n,ncol=n_snp))*k0))
   
@@ -15,17 +14,17 @@ get_bi_data<-function(n,PAHP=F){
   colnames(g)<-paste0("rs",1:n_snp)
   
   if(T){
-    sk_2<-0.16^2
+    sk_2<-0.15^2
     out_k<-MASS::mvrnorm(n_snp,c(0,0),matrix(c(sk_2*1,sk_2*2*0.9,sk_2*2*0.9,sk_2*4),2))
     k1<-out_k[,1]
     k2<-out_k[,2]
   }
   
-  b1<-0.3
+  b1<-(-0.3)
   p1<-0.5
   p2<-0.5
-  u1<-1
-  s1_2<-0.16^2
+  u1<-0.75
+  s1_2<-0.12^2
   if(PAHP){
     rho<-1
     k3<-2*k1
@@ -60,7 +59,7 @@ get_bi_data<-function(n,PAHP=F){
   
   if(T){
     py<-b1*x+g3%*%rep(1,n_snp)+0.3*u10+0.3*u20
-    py<-exp(py-mean(py)-2.2)
+    py<-exp(py-mean(py)-1.8)
     #print(quantile(py,c(0.50,0.99,0.999,0.9999,1)))
     py[py>=1]<-1
     y<-rbinom(n,1,py)
