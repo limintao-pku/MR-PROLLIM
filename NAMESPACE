@@ -1,3 +1,0 @@
-useDynLib(MRprollim, .registration=TRUE)
-importFrom(Rcpp, evalCpp)
-export(est_proc_bi, est_proc_cont, summary.mrp, plot.mrp.p3, get_sig_snp, data_p32data_p12, data_p32data_me_mo_q_re, data_remp2data_p3_opt, calcu_fpr, crt_MR_g, get_cont_data, get_cont_data2, get_bi_data)
