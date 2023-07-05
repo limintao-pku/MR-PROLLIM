@@ -15,3 +15,7 @@ The 1.0.2 version has the following main changes:
 We expect that these changes will not have substantial impacts on the results in our paper.    
 
 R scripts used to derive the results in our paper are also provided.
+
+######################################################################################
+The 1.0.3 version removes the dependence on the "stringr" package. Functions (grepl and gsub) in the "base" package
+are used as substitutes.
