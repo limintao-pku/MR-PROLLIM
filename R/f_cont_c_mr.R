@@ -1,0 +1,33 @@
+f_cont_c_mr<-function(beta,y,g,g_dum,c,a1,b1_sp=NULL,b4_prior,grad=T,der_indiv=F){
+  #a generic function
+  #b4_prior (1 or 0) indicates whether or not to compute h
+  beta<-c(b1_sp,beta)
+  loc<-which(b4_prior==1)
+  b4_prior[loc]<-beta[-1][1:length(loc)]
+  beta<-c(beta[1],b4_prior,beta[(2+length(loc)):length(beta)])
+  py<-exp(g_dum%*%a1*beta[1]+cbind(g,c,1)%*%beta[-1])
+  py[py>=1]<-1
+  out<-sum(-log(py^y*(1-py)^(1-y)))
+  if(grad){
+    if(is.null(b1_sp)){
+      k1<-g_dum%*%a1
+    }else{k1<-NULL}
+    if(is.matrix(g)){
+      k2<-g[,loc]
+    }else{
+      if(length(loc)==1){
+        k2<-g
+      }else{
+        k2<-NULL
+      }
+    }
+    o<-(y-1)/(1-py)
+    o<-replace(o,is.na(o),0)
+    if(der_indiv){
+      return(-c((y/py+o)*py)*cbind(k1,k2,c,1))
+    }
+    grad_out<-t((y/py+o)*py)%*%cbind(k1,k2,c,1)
+    attr(out,'gradient')=-grad_out
+  }
+  return(out)
+}

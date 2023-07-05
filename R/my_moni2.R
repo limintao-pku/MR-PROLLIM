@@ -1,0 +1,12 @@
+my_moni2<-function(begin,i,n,my_proc,out=(1:10)/10,time=F,t0=NULL){
+  trace<-which(i/n>=out)
+  if(length(trace)!=0){
+    id<-trace[length(trace)]
+    if(id>my_proc){
+      a<-out[id]
+      message_parallel2(begin,paste0(a*100,"%"),time,t0)
+      return(id)
+    }
+  }
+  return(my_proc)
+}
