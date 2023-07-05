@@ -17,7 +17,7 @@ mynlminb<-function(f,p,...,control,check_delta_k=c(1e-3,1e-4),name=NULL){
   s1_fit<-F
   if(!"error"%in%class(fit)){
     fit_message<-fit$message
-    if(fit$code==0|(stringr::str_detect(fit_message,"(singular convergence)|(false convergence)"))){
+    if(fit$code==0|(str_detect(fit_message,"(singular convergence)|(false convergence)"))){
       s1_fit<-T
     }else{
       warning(paste0(name,": nlminb returns an abnormal message: ",fit_message))

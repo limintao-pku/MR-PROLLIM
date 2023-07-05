@@ -193,7 +193,7 @@ summary.mrp<-function(est_out,sd,se_u1_method=c("hessian","sandwich","b1"),s1_cu
   }
   sum_data<-cbind(est=beta,se_asy_norm=se_asy,p.value_asy=p.value_asy,lower_asy=lower_asy,upper_asy=upper_asy,se_boot_norm=se_boot,p.value_boot=p.value_boot,lower_boot=lower_boot,upper_boot=upper_boot)
   rownames(sum_data)<-names(beta)
-  loc<-which(stringr::str_detect(rownames(sum_data),"b1|u1"))
+  loc<-which(str_detect(rownames(sum_data),"b1|u1"))
   for(i in 1:length(loc)){
     sum_data[loc[i],1:2]<-sum_data[loc[i],1:2]/sd
     sum_data[loc[i],4:6]<-sum_data[loc[i],4:6]/sd

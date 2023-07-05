@@ -933,10 +933,10 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
       c1<-paste0(capture.output(expr1),collapse="")
       c2<-paste0(capture.output(expr2),collapse="")
       if(identical(c2,"expression()")){
-        return(paste0(stringr::str_remove_all(c1,"expression\\(|\\)\\)$"),")"))
+        return(paste0(str_remove_all(c1,"expression\\(|\\)\\)$"),")"))
       }
-      cc<-paste0(stringr::str_remove_all(c1,"expression\\(|\\)\\)$"),", ",
-                 stringr::str_remove_all(c2,"expression\\(|\\)$"),")")
+      cc<-paste0(str_remove_all(c1,"expression\\(|\\)\\)$"),", ",
+                 str_remove_all(c2,"expression\\(|\\)$"),")")
       cc
     }
     
@@ -2111,7 +2111,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1_int))&(!"error"%in%class(fit_int))){
                 if("mywarning"%in%class(fit1_int)){
-                  warning_out<-fit1_int$warning[!stringr::str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1_int$warning[!str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2213,7 +2213,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1_egger))&(!"error"%in%class(fit_egger))){
                 if("mywarning"%in%class(fit1_egger)){
-                  warning_out<-fit1_egger$warning[!stringr::str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1_egger$warning[!str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2339,7 +2339,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1))&(!"error"%in%class(fit))){
                 if("mywarning"%in%class(fit1)){
-                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1$warning[!str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2749,7 +2749,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1_int))&(!"error"%in%class(fit_int))){
                 if("mywarning"%in%class(fit1_int)){
-                  warning_out<-fit1_int$warning[!stringr::str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1_int$warning[!str_detect(fit1_int$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2836,7 +2836,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1_egger))&(!"error"%in%class(fit_egger))){
                 if("mywarning"%in%class(fit1_egger)){
-                  warning_out<-fit1_egger$warning[!stringr::str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1_egger$warning[!str_detect(fit1_egger$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }
@@ -2946,7 +2946,7 @@ est_proc_bi<-function(x,y,g,c=NULL,c_inherit=T,dum_loc_list="auto",
               
               if((!"error"%in%class(fit1))&(!"error"%in%class(fit))){
                 if("mywarning"%in%class(fit1)){
-                  warning_out<-fit1$warning[!stringr::str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
+                  warning_out<-fit1$warning[!str_detect(fit1$warning,"(Out of Boundary individual)|(NaNs produced)")]
                   if(length(warning_out)>0){
                     message("Warnings in genoud:\n",paste0(warning_out,collapse="\n"))
                   }

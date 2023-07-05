@@ -32,7 +32,7 @@ plot.mrp.p3<-function(est_out,ci_cover=0.95,use_trans=T,trans_lower=0,reorder=NU
   }
   my_eval<-function(code_start,code_list,code_end=")",env){
     exp2char<-function(exp){
-      stringr::str_remove_all(paste0(capture.output(exp),collapse=""),"(^expression\\()|(\\)$)")
+      str_remove_all(paste0(capture.output(exp),collapse=""),"(^expression\\()|(\\)$)")
     }
     eval(parse(text=paste0(code_start,exp2char(as.expression(code_list)),code_end)),envir=env)
   }

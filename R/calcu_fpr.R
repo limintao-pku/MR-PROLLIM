@@ -10,7 +10,7 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
   if(!is.data.frame(summary_data)){stop("summary_data should be a data.frame.")}
   if(any(!c("snp","eff","se")%in%colnames(summary_data))){stop("summary_data should contain columns 'snp', 'eff', and 'se'.")}
   if(!identical(summary_data$snp,colnames(g))){stop("summary_data$snp should be identical to colnames(g).")}
-  if(any(stringr::str_detect(colnames(g),"_recoded"))){stop("colnames(g) should not contain '_recoded'.")}
+  if(any(str_detect(colnames(g),"_recoded"))){stop("colnames(g) should not contain '_recoded'.")}
   if(any(duplicated(summary_data$snp))){stop("Duplicated SNP names detected.")}
   stopifnot(cor_method%in%c("pearson","spearman"))
   summary_data$p<-pnorm(-abs(summary_data$eff/summary_data$se))*2
@@ -107,8 +107,8 @@ calcu_fpr<-function(p1,p2,summary_data,x,g,c,c_inherit=T,start=NULL,type=c("c","
   }
   mydata10<-mydata1
   
-  name_re<-names(mydata1$eff)[stringr::str_detect(names(mydata1$eff),"_recoded")]
-  name_re<-stringr::str_remove_all(name_re,"_recoded")
+  name_re<-names(mydata1$eff)[str_detect(names(mydata1$eff),"_recoded")]
+  name_re<-str_remove_all(name_re,"_recoded")
   if(length(name_re)>0){
     for(i in 1:length(name_re)){
       loc<-which(summary_data$snp==name_re[i])
